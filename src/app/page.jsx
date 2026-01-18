@@ -48,14 +48,33 @@ export default function Home() {
     cooler,
   }
 
-      // Now apply it back into state (one state at a time)
-    // setCpu(loadedBuild.cpu ?? "");
-    // setGpu(loadedBuild.gpu ?? "");
-    // setRam(loadedBuild.ram ?? "");
-    // setStorage(loadedBuild.storage ?? "");
-    // setMotherboard(loadedBuild.motherboard ?? "");
-    // setPsu(loadedBuild.psu ?? "");
-    // setCooler(loadedBuild.cooler ?? ""); 
+  // Apply build into state (one state at a time)
+  function applyBuildToState(b) {
+    setCpu(b.cpu ?? "");
+    setGpu(b.gpu ?? "");
+    setRam(b.ram ?? "");
+    setStorage(b.storage ?? "");
+    setMotherboard(b.motherboard ?? "");
+    setPsu(b.psu ?? "");
+    setCooler(b.cooler ?? ""); 
+  }
+
+  function handleSave() {
+    saveBuild(build);
+  }
+
+  function handleLoad() {
+    // Load returns an object OR null
+    const loaded = loadBuild();
+    if (!loaded) return;
+
+    applyBuildToState(loaded);
+  }
+
+  function handleReset() {
+    // Reset UI selections
+    applyBuildToState({}); // all fields become "" because of ?? ""
+  }
 
   // If prices haven't loaded yet,t show something instead of a blank page
   if (!prices) {
@@ -84,9 +103,7 @@ export default function Home() {
  
         <h2>Total: ${total}</h2>
 
-        <div style={{ display: "flex", gap: 12, marginTop: 16}}>
-          
-        </div>
+      <BuildControls onSave={handleSave} onLoad={handleLoad} onReset={handleReset} />
       </main>
     );
   }

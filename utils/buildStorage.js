@@ -29,7 +29,3 @@ export function loadBuild() {
         return null;
     }
 }
-
-export function clearBuild() {
-    localStorage.removeItem(STORAGE_KEY);
-}
