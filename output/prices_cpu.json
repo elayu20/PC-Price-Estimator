@@ -543,35 +543,5 @@
     "Intel Core 2 Duo E4600": 98.95,
     "Intel Pentium G3460": 125,
     "Intel Xeon E3-1275 V6-2": 495.4
-  },
-  "gpu": {
-    "gtx-1660-super": 180,
-    "rtx-3060": 280,
-    "rtx-3080": 450,
-    "rx-6700xt": 340
-  },
-  "ram": {
-    "16gb-ddr4": 40,
-    "32gb-ddr4": 70,
-    "64gb-ddr4": 130
-  },
-  "storage": {
-    "500gb-ssd": 45,
-    "1tb-ssd": 80,
-    "2tb-hdd": 60
-  },
-  "motherboard": {
-    "b450": 100,
-    "b550": 140,
-    "z690": 190
-  },
-  "psu": {
-    "650w": 70,
-    "750w": 90,
-    "850w": 120
-  },
-  "cooler": {
-    "air-cooler": 40,
-    "aio-240mm": 90
   }
 }
