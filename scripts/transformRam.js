@@ -4,31 +4,31 @@ const fs = require("fs");
 // -------------- Main transform ----------------
 
 // 1) Read the raw JSON file as a string
-const rawText = fs.readFileSync("data/cpus.json", "utf8");
+const rawText = fs.readFileSync("data/ram.json", "utf8");
 
 // 2) Convert JSON string -> JS array of objects
-const cpuArray = JSON.parse(rawText);
+const ramArray = JSON.parse(rawText);
 
-// 3) Build desired JSON object shape: { cpu: {id: price, ...} }
-const output = { cpu: {} };
+// 3) Build desired JSON object shape: { ram: {id: price, ...} }
+const output = { ram: {} };
 
-for (const item of cpuArray) {
+for (const item of ramArray) {
     // Safety: skip entries without required fields
     if (!item.name || item.price == null) continue;
 
     const id = item.name;
     const price = item.price;
 
-    // If item already exists, skip it
-    if (output.cpu[id] !== undefined) {
+    // If duplicate, skip it
+    if (output.ram[id] !== undefined) {
         continue;
     }
 
     // Otherwise, store it
-    output.cpu[id] = price;
+    output.ram[id] = price;
 }
 
 // 4) Write pretty JSON (multi-line + indented)
 // JSON.stringify(obj, null, 2) makes it formatted nicely
-fs.writeFileSync("output/prices_cpu.json", JSON.stringify(output, null, 2), "utf8");
-console.log("Wrote output/prices_cpu.json with", Object.keys(output.cpu).length, "CPUs");
+fs.writeFileSync("output/prices_ram.json", JSON.stringify(output, null, 2), "utf8");
+console.log("Wrote output/prices_ram.json with", Object.keys(output.ram).length, "RAM");
