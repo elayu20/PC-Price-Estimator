@@ -19,9 +19,15 @@ export function loadBuild() {
     }
 
     // Convert JSON string back into object
-    const loadedBuild = JSON.parse(saved);
-    console.log("Loaded build:", loadedBuild);
-    return loadedBuild;
+    try {
+        const loadedBuild = JSON.parse(saved);
+        console.log("Loaded build:", loadedBuild);
+        return loadedBuild;
+    } catch (err) {
+        console.error("Saved build was corrupted, clearing it.", err);
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+    }
 }
 
 export function clearBuild() {

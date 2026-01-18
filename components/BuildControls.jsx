@@ -6,7 +6,7 @@ export default function BuildControls({ onSave, onLoad, onReset }) {
     */
 
         return (
-            <div>
+            <div style={{ display: "flex", gap: 12, marginTop: 16}}>
                 <button onClick={onSave}>Save Build</button>
                 <button onClick={onLoad}>Load Build</button>
                 <button onClick={onReset}>Reset</button>
