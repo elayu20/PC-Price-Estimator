@@ -1,12 +1,10 @@
 "use client"
 import { useEffect, useState } from "react"
 import PartSelect from "../../components/PartSelect";
+import { saveBuild, loadBuild, clearBuild } from "../../utils/buildStorage";
+import BuildControls from "../../components/BuildControls";
 
 export default function Home() {
-  // A unique name for what we store in the browser
-  // Versioning ("v1") in case format changes later
-  const STORAGE_KEY = "pcpe_build_v1";
-
   const [cpu, setCpu] = useState("");
   const [gpu, setGpu] = useState("");
   const [ram, setRam] = useState("");
@@ -40,52 +38,24 @@ export default function Home() {
   const coolerPrice = prices && cooler ? prices.cooler[cooler] : 0;
   const total = cpuPrice + gpuPrice + ramPrice + storagePrice + motherboardPrice + psuPrice + coolerPrice; 
 
-  function saveBuild() {
-    // Convert the build object into a string so localStorage can store it
-    const buildJson = JSON.stringify(build);
-
-    // Save it under STORAGE_KEY in the user's browser.
-    localStorage.setItem(STORAGE_KEY, buildJson);
-
-    // quick confirmation in console
-    console.log("Saved build:", build);
+  const build = {
+    cpu,
+    gpu,
+    ram,
+    storage,
+    motherboard,
+    psu,
+    cooler,
   }
 
-  function loadBuild() {
-    // Get the saved string back out of storage
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    // If nothing was saved, do nothing
-    if (!saved) {
-      console.log("No saved build found.");
-      return;
-    }
-
-    // Convert the JSON string back into an object
-    const loadedBuild = JSON.parse(saved);
-
-    // Now apply it back into state (one state at a time)
-    setCpu(loadedBuild.cpu ?? "");
-    setGpu(loadedBuild.gpu ?? "");
-    setRam(loadedBuild.ram ?? "");
-    setStorage(loadedBuild.storage ?? "");
-    setMotherboard(loadedBuild.motherboard ?? "");
-    setPsu(loadedBuild.psu ?? "");
-    setCooler(loadedBuild.cooler ?? "");
-
-    console.log("Loaded build:", loadedBuild);
-  }
-
-  // Helper for reset button
-  function resetBuild() {
-    setCpu("");
-    setGpu("");
-    setRam("");
-    setStorage("");
-    setMotherboard("");
-    setPsu("");
-    setCooler("");
-  }
+      // Now apply it back into state (one state at a time)
+    // setCpu(loadedBuild.cpu ?? "");
+    // setGpu(loadedBuild.gpu ?? "");
+    // setRam(loadedBuild.ram ?? "");
+    // setStorage(loadedBuild.storage ?? "");
+    // setMotherboard(loadedBuild.motherboard ?? "");
+    // setPsu(loadedBuild.psu ?? "");
+    // setCooler(loadedBuild.cooler ?? ""); 
 
   // If prices haven't loaded yet,t show something instead of a blank page
   if (!prices) {
@@ -111,14 +81,11 @@ export default function Home() {
         <p>Storage: ${storagePrice}</p>
         <p>PSU: ${psuPrice}</p>
         <p>Cooler: ${coolerPrice}</p>
-
-        <button onClick={resetBuild} type="button">Clear</button>
-      
+ 
         <h2>Total: ${total}</h2>
 
         <div style={{ display: "flex", gap: 12, marginTop: 16}}>
-          <button type="button" onClick={saveBuild}>Save Build</button>
-          <button type="button" onClick={loadBuild}>Load Build</button>
+          
         </div>
       </main>
     );
