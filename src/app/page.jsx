@@ -29,13 +29,13 @@ export default function Home() {
   }, [])
 
   // Only read prices if prices are loaded
-  const cpuPrice = prices && cpu ? prices.cpu[cpu] : 0;
-  const gpuPrice = prices && gpu ? prices.gpu[gpu] : 0;
-  const ramPrice = prices && ram ? prices.ram[ram] : 0;
-  const storagePrice = prices && storage ? prices.storage[storage] : 0;
-  const motherboardPrice = prices && motherboard ? prices.motherboard[motherboard] : 0;
-  const psuPrice = prices && psu ? prices.psu[psu] : 0;
-  const coolerPrice = prices && cooler ? prices.cooler[cooler] : 0;
+  const cpuPrice = prices && cpu ? Number(prices.cpu[cpu]) || 0 : 0;
+  const gpuPrice = prices && gpu ? Number(prices.gpu[gpu]) || 0 : 0;
+  const ramPrice = prices && ram ? Number(prices.ram[ram]) || 0 : 0;
+  const storagePrice = prices && storage ? (prices.storage[storage]) || 0 : 0;
+  const motherboardPrice = prices && motherboard ? Number(prices.motherboard[motherboard]) || 0 : 0;
+  const psuPrice = prices && psu ? (prices.psu[psu]) || 0 : 0;
+  const coolerPrice = prices && cooler ? (prices.cooler[cooler]) || 0 : 0;
   const total = cpuPrice + gpuPrice + ramPrice + storagePrice + motherboardPrice + psuPrice + coolerPrice; 
 
   const build = {
