@@ -34,8 +34,8 @@ export default function Home() {
   const ramPrice = prices && ram ? Number(prices.ram[ram]) || 0 : 0;
   const storagePrice = prices && storage ? (prices.storage[storage]) || 0 : 0;
   const motherboardPrice = prices && motherboard ? Number(prices.motherboard[motherboard]) || 0 : 0;
-  const psuPrice = prices && psu ? (prices.psu[psu]) || 0 : 0;
-  const coolerPrice = prices && cooler ? (prices.cooler[cooler]) || 0 : 0;
+  const psuPrice = prices && psu ? Number(prices.psu[psu]) || 0 : 0;
+  const coolerPrice = prices && cooler ? Number(prices.cooler[cooler]) || 0 : 0;
   const total = cpuPrice + gpuPrice + ramPrice + storagePrice + motherboardPrice + psuPrice + coolerPrice; 
 
   const build = {
@@ -80,36 +80,6 @@ export default function Home() {
   if (!prices) {
     return <p>Loading prices...</p>
   }
-
-  // Presentable formatting to display current cpu used in build
-  let cpuVisible = cpu;
-  if (cpu != "") {
-    cpuVisible = " " + "(" + cpu + ")";
-  }
-  let gpuVisible = gpu;
-  if (gpu != "") {
-    gpuVisible = " " + "(" + gpu + ")";
-  }
-  let ramVisible = ram;
-  if (ram != "") {
-    ramVisible = " " + "(" + ram + ")";
-  }
-  let motherboardVisible = motherboard;
-  if (motherboard != "") {
-    motherboardVisible = " " + "(" + motherboard + ")";
-  }
-  let storageVisible = storage;
-  if (storage != "") {
-    storageVisible = " " + "(" + storage + ")";
-  }
-  let psuVisible = psu;
-  if (psu != "") {
-    psuVisible = " " + "(" + psu + ")";
-  }
-  let coolerVisible = cooler;
-  if (cooler != "") {
-    coolerVisible = " " + "(" + cooler + ")";
-  }
   
   if (prices) {
     return (
@@ -123,15 +93,19 @@ export default function Home() {
         <PartSelect label="Storage" value={storage} setValue={setStorage} options={prices?.storage}/>
         <PartSelect label="PSU" value={psu} setValue={setPsu} options={prices?.psu}/>
         <PartSelect label="Cooler" value={cooler} setValue={setCooler} options={prices?.cooler}/>
-        <p>CPU{cpuVisible}: ${cpuPrice}</p>
-        <p>GPU{gpuVisible}: ${gpuPrice}</p>
-        <p>RAM{ramVisible}: ${ramPrice}</p>
-        <p>Motherboard{motherboardVisible}: ${motherboardPrice}</p>
-        <p>Storage{storageVisible}: ${storagePrice}</p>
-        <p>PSU{psuVisible}: ${psuPrice}</p>
-        <p>Cooler{coolerVisible}: ${coolerPrice}</p>
- 
-        <h2>Total: ${total}</h2>
+
+        <div style={{ marginTop: "24px", padding: "16px", border: "1px solid #ccc" }}>
+          <h3>Build Summary</h3>
+          <p>CPU{cpu=="" ? "" : " " + `(${cpu})`}: ${cpuPrice.toFixed(2)}</p>
+          <p>GPU{gpu=="" ? "" : " " + `(${gpu})`}: ${gpuPrice.toFixed(2)}</p>
+          <p>RAM{ram=="" ? "" : " " + `(${ram})`}: ${ramPrice.toFixed(2)}</p>
+          <p>Motherboard{motherboard=="" ? "" : " " + `(${motherboard})`}: ${motherboardPrice.toFixed(2)}</p>
+          <p>Storage{storage=="" ? "" : " " + `(${storage})`}: ${storagePrice.toFixed(2)}</p>
+          <p>PSU{psu=="" ? "" : " " + `(${psu})`}: ${psuPrice.toFixed(2)}</p>
+          <p>Cooler{cooler=="" ? "" : " " + `(${cooler})`}: ${coolerPrice.toFixed(2)}</p>
+  
+          <h2>Total: ${total.toFixed(2)}</h2>
+        </div>
 
       <BuildControls onSave={handleSave} onLoad={handleLoad} onReset={handleReset} />
       </main>
