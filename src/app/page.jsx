@@ -80,6 +80,36 @@ export default function Home() {
   if (!prices) {
     return <p>Loading prices...</p>
   }
+
+  // Presentable formatting to display current cpu used in build
+  let cpuVisible = cpu;
+  if (cpu != "") {
+    cpuVisible = " " + "(" + cpu + ")";
+  }
+  let gpuVisible = gpu;
+  if (gpu != "") {
+    gpuVisible = " " + "(" + gpu + ")";
+  }
+  let ramVisible = ram;
+  if (ram != "") {
+    ramVisible = " " + "(" + ram + ")";
+  }
+  let motherboardVisible = motherboard;
+  if (motherboard != "") {
+    motherboardVisible = " " + "(" + motherboard + ")";
+  }
+  let storageVisible = storage;
+  if (storage != "") {
+    storageVisible = " " + "(" + storage + ")";
+  }
+  let psuVisible = psu;
+  if (psu != "") {
+    psuVisible = " " + "(" + psu + ")";
+  }
+  let coolerVisible = cooler;
+  if (cooler != "") {
+    coolerVisible = " " + "(" + cooler + ")";
+  }
   
   if (prices) {
     return (
@@ -93,13 +123,13 @@ export default function Home() {
         <PartSelect label="Storage" value={storage} setValue={setStorage} options={prices?.storage}/>
         <PartSelect label="PSU" value={psu} setValue={setPsu} options={prices?.psu}/>
         <PartSelect label="Cooler" value={cooler} setValue={setCooler} options={prices?.cooler}/>
-        <p>CPU: ${cpuPrice}</p>
-        <p>GPU: ${gpuPrice}</p>
-        <p>RAM: ${ramPrice}</p>
-        <p>Motherboard: ${motherboardPrice}</p>
-        <p>Storage: ${storagePrice}</p>
-        <p>PSU: ${psuPrice}</p>
-        <p>Cooler: ${coolerPrice}</p>
+        <p>CPU{cpuVisible}: ${cpuPrice}</p>
+        <p>GPU{gpuVisible}: ${gpuPrice}</p>
+        <p>RAM{ramVisible}: ${ramPrice}</p>
+        <p>Motherboard{motherboardVisible}: ${motherboardPrice}</p>
+        <p>Storage{storageVisible}: ${storagePrice}</p>
+        <p>PSU{psuVisible}: ${psuPrice}</p>
+        <p>Cooler{coolerVisible}: ${coolerPrice}</p>
  
         <h2>Total: ${total}</h2>
 
