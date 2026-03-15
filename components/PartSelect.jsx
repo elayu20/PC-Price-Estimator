@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 /*
     PartSelect: A custom Autocomplete Combobox component
@@ -15,6 +15,11 @@ export default function PartSelect({ label, value, setValue, options }) {
 
     // isOpen tracks whether the custom dropdown list is visible
     const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+        // If the parent chages the value (e.g., Load or Reset), update our local input box
+        setInputValue(value || "");
+    }, [value]);
 
     // If options isn't loaded yet, show a disabled input
     if (!options) {
