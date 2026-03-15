@@ -3,108 +3,116 @@
 import { useMemo, useState } from "react";
 
 /*
-    PartSelect is a reusable dropdown component.
-
-    It works for any part category (cpu, gpu, ram, etc.) as long as you pass:
-    - label: what the user sees (e.g., "CPU")
-    - value: the currently selected id (string)
-    - setValue: the setter from useState (e.g. setCpu)
-    - options: the object from your JSON (e.g. prices.cpu)
+    PartSelect: A custom Autocomplete Combobox component
+    Replaces the standard <select> with a searchable text input + floating list
 */
 
 export default function PartSelect({ label, value, setValue, options }) {
-    // ------------------
-    // 1) Local UI state (SEARCH)
-    // This is ONLY for filtering what the user sees.
-    // It does NOT replace selected value
-    const [query, setQuery] = useState("");
+    // 1) Unified State
+    // inputValue tracks exactly what is typed in the box
+    // We initialize it with 'value' in case a saved build is loaded
+    const [inputValue, setInputValue] = useState(value || ""); 
 
-    // If options isn't loaded yet, show a disabled dropdown
-    // (Prevents crashes if prices hasn't loaded)
+    // isOpen tracks whether the custom dropdown list is visible
+    const [isOpen, setIsOpen] = useState(false);
+
+    // If options isn't loaded yet, show a disabled input
     if (!options) {
         return (
-            <div>
-                <input disabled placeholder={`Search ${label}...`} />
-                <select disabled value="">
-                    <option>Loading...</option>
-                </select>
+            <div style={{ marginBottom: 16 }}>
+                <input disabled placeholder={`Loading ${label} data...`} style={{ width: "100%", padding: "8px" }} />
             </div>
-        )
-    };
+        );
+    }
 
-    // -------------------------------------------
-    // 2) Convert object -> array, then filter it
-    // -------------------------------------------
-    // Object.entries(options) gives:
-    //  [ [name1, price1], [name2, price2], ... ]
-    //
-    // We filter it so only matching names remain.
-    //
-    // useMemo = performance helper (optional but nice):
-    // It avoids re-filtering on every render unless
-    // options or query actually changes.
-    const filteredEntries = useMemo(() => {
-        // Make searching forgiving:
-        // - ignore uppercase/lowercase
-        // - ignore leading/trailing spaces
-        const q = query.trim().toLowerCase();
+    // 2) Filter the data based on the text input
+    const filteredEntries = useMemo ( () => {
+        const q = inputValue.trim().toLowerCase();
 
-        // If the search box is empty, show everything
+        // If the box is empty, show everything
         if (q === "") {
             return Object.entries(options);
         }
 
-        // Otherwise, show only items whose name contains q
+        // Show items containing the search string
         return Object.entries(options).filter(([name]) =>
             name.toLowerCase().includes(q)
         );
-    }, [options, query]);
+    }, [options, inputValue]);
 
-    // Optional: limit results so dropdown isn't insanely long
-    // (Adjust 50 to whatever you want)
     const limitedEntries = filteredEntries.slice(0, 50);
 
-    // ------------------------------
-    // 3) Render search input + dropdown
-    // ------------------------------
+    // 3) Handle user selection
+    const handleSelect = (name) => {
+        setValue(name); // Update the actual build state in the parent
+        setInputValue(name); // Lock the input text to the exact part name
+        setIsOpen(false); // Close the dropdown
+    }
+
     return (
-        <div style={{ marginBottom: 16}}>
-            {/* Search box */}
-            <input 
-                value={query} 
-                onChange={(e) => setQuery(e.target.value)} // updates query as user types
-                placeholder={`Search ${label}...`}
-                style={{ width: "100%", marginBottom: 8}}
+        // The wrapper must be relative so the absolute dropdown positions correctly beneath it
+        <div style={{ marginBottom: 16, position: "relative" }}>
+
+            <input
+                value={inputValue}
+                placeholder={`Search or select ${label}...`}
+                style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
+
+                // When the user types:
+                onChange={ (e) => {
+                    setInputValue(e.target.value);
+                    setValue(""); // Clear the parent's selected value because they are searching for a new one
+                    setIsOpen(true); // Ensure dropdown opens when typing
+                }}
+
+                // Open dropdown when clicking into the input
+                onFocus={ () => setIsOpen(true)}
+
+                // Close dropdown when clicking away
+                // The setTimeout is a classic React trick
+                onBlur={() => setTimeout(() => setIsOpen(false), 150)}
             />
 
-            {/* Dropdown (still a normal <select>) */}
-            <select
-                value={value}
-                onChange={(e) => {
-                    // When user chooses something:
-                    // 1) Update the selected value in the parent
-                    setValue(e.target.value);
-                }}
-                style={{ width: "100%"}}
-            >
-                <option value="" disabled>
-                    Choose {label}...
-                </option>
-
-                {/* Render filtered options */}
-                {limitedEntries.map(([name, price]) => (
-                    <option key={name} value={name}>
-                        {name} (${price})
-                    </option>
-                ))}
-
-                {/* If nothing matches, show a helpful message */}
-                {limitedEntries.length === 0 && (
-                    <option disabled value="">
-                        No matches found
-                    </option>
-                )}
-            </select>
+            {/* Custom Dropdown Menu */}
+            {isOpen && (
+                <ul style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    margin: 0,
+                    padding: 0,
+                    listStyle: "none",
+                    backgroundColor: "white",
+                    border: "1px solid #ccc",
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                    zIndex: 10, // Ensure it floats above other inputs below it
+                    boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+                }}>
+                    {limitedEntries.length > 0 ? (
+                        limitedEntries.map(([name, price]) => (
+                            <li
+                                key={name}
+                                // We use onMouseDown instead of onClick
+                                onMouseDown={() => handleSelect(name)}
+                                style={{
+                                    padding: "8px",
+                                    cursor: "pointer",
+                                    borderBottom: "1px solid #eee",
+                                    color: "black"
+                                }}
+                            >
+                                {name} <strong>(${price})</strong>
+                            </li>
+                        ))
+                    ) : (
+                        <li style={{ padding: "8px", color: "#888" }}>
+                            No matches found
+                        </li>
+                    )}
+                </ul>
+            )}
         </div>
     )
 }
