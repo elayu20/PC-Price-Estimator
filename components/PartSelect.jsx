@@ -108,7 +108,7 @@ export default function PartSelect({ label, value, setValue, options }) {
                                     color: "black"
                                 }}
                             >
-                                {name} <strong>(${price})</strong>
+                                {name}
                             </li>
                         ))
                     ) : (
