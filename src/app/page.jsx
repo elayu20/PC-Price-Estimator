@@ -61,6 +61,7 @@ export default function Home() {
 
   // Apply build into state (one state at a time)
   function applyBuildToState(b) {
+    // Set the names
     setCpu(b.cpu ?? "");
     setGpu(b.gpu ?? "");
     setRam(b.ram ?? "");
@@ -68,6 +69,15 @@ export default function Home() {
     setMotherboard(b.motherboard ?? "");
     setPsu(b.psu ?? "");
     setCooler(b.cooler ?? ""); 
+
+    // Immediately fetch live prices for the loaded parts
+    if (b.cpu) fetchIndividualPrice("cpu", b.cpu);
+    if (b.gpu) fetchIndividualPrice("gpu", b.gpu);
+    if (b.ram) fetchIndividualPrice("ram", b.ram);
+    if (b.storage) fetchIndividualPrice("storage", b.storage);
+    if (b.motherboard) fetchIndividualPrice("motherboard", b.motherboard);
+    if (b.psu) fetchIndividualPrice("psu", b.psu);
+    if (b.cooler) fetchIndividualPrice("cooler", b.cooler);
   }
 
   function handleSave() {
