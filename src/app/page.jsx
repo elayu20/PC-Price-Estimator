@@ -283,25 +283,7 @@ export default function Home() {
           <p>PSU{psu=="" ? "" : " " + `(${psu})`}: ${psuPrice.toFixed(2)}</p>
           <p>Cooler{cooler=="" ? "" : " " + `(${cooler})`}: ${coolerPrice.toFixed(2)}</p>
   
-          <h2>Total: ${total.toFixed(2)}</h2>
-
-          {/* LIVEEBAY PRICING SECTION */}
-          <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "2px dashed #ccc" }}>
-            <button
-              onClick={handleGetLiveTotal}
-              disabled={isFetchingLive}
-              style={{ padding: "10px 20px", fontSize: "16px", cursor: "pointer", backgroundColor: "#0053A0", color: "white", border: "none", borderRadius: "4px" }}
-            >
-              {isFetchingLive ? "Searching ebay..." : "Get Live eBay Total"}
-            </button>
-
-            {/* Only show the live total if we have successfuly fetched it */}
-            {liveEbayTotal !== null && (
-              <h2 style={{ color: "#0053A0" }}>
-                Live Market Total (CAD): ${liveEbayTotal.toFixed(2)}
-              </h2>
-            )}
-          </div>
+          <h2>Total: ${total.toFixed(2)}</h2> 
         </div>
 
       <BuildControls onSave={handleSave} onLoad={handleLoad} onReset={handleReset} />
