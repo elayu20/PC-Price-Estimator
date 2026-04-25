@@ -95,6 +95,20 @@ export default function Home() {
   function handleReset() {
     // Reset UI selections
     applyBuildToState({}); // all fields become "" because of ?? ""
+
+    // Reset the live price memory bank to all nulls
+    setIndividualLivePrices({
+      cpu: null,
+      gpu: null,
+      ram: null,
+      motherboard: null,
+      storage: null,
+      psu: null,
+      cooler: null,
+    });
+
+    // Reset the live total
+    setLiveEbayTotal(null);
   }
 
   // Fetches the live price for an array of parts one by one
@@ -175,12 +189,7 @@ export default function Home() {
             value={cpu} 
             setValue={(val) => { setCpu(val); fetchIndividualPrice("cpu", val); }} 
             options={prices?.cpu}
-          />
-          {individualLivePrices.cpu !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.cpu.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         {/* --- GPU --- */}
@@ -190,12 +199,7 @@ export default function Home() {
             value={gpu} 
             setValue={(val) => { setGpu(val); fetchIndividualPrice("gpu", val); }} 
             options={prices?.gpu}
-          />
-          {individualLivePrices.gpu !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.gpu.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         {/* --- RAM --- */}
@@ -205,12 +209,7 @@ export default function Home() {
             value={ram} 
             setValue={(val) => { setRam(val); fetchIndividualPrice("ram", val); }} 
             options={prices?.ram}
-          />
-          {individualLivePrices.ram !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.ram.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         {/* --- MOTHERBOARD --- */}
@@ -220,12 +219,7 @@ export default function Home() {
             value={motherboard} 
             setValue={(val) => { setMotherboard(val); fetchIndividualPrice("motherboard", val); }} 
             options={prices?.motherboard}
-          />
-          {individualLivePrices.motherboard !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.motherboard.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         {/* --- STORAGE --- */}
@@ -235,12 +229,7 @@ export default function Home() {
             value={storage} 
             setValue={(val) => { setStorage(val); fetchIndividualPrice("storage", val); }} 
             options={prices?.storage}
-          />
-          {individualLivePrices.storage !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.storage.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         {/* --- PSU --- */}
@@ -250,12 +239,7 @@ export default function Home() {
             value={psu} 
             setValue={(val) => { setPsu(val); fetchIndividualPrice("psu", val); }} 
             options={prices?.psu}
-          />
-          {individualLivePrices.psu !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.psu.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         {/* --- COOLER --- */}
@@ -265,12 +249,7 @@ export default function Home() {
             value={cooler} 
             setValue={(val) => { setCooler(val); fetchIndividualPrice("cooler", val); }} 
             options={prices?.cooler}
-          />
-          {individualLivePrices.cooler !== null && (
-            <div style={{ color: "#00a82d", fontWeight: "bold", marginTop: "-12px", marginLeft: "8px" }}>
-              ↳ ${individualLivePrices.cooler.toFixed(2)} CAD (Live eBay)
-            </div>
-          )}
+          /> 
         </div>
 
         <div style={{ marginTop: "24px", padding: "16px", border: "1px solid #ccc" }}>
