@@ -14,11 +14,78 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model Parts {
-  id    Int     @id @default(autoincrement())
-  name  String
-  brand String
-  socket String
+// Master Table (Every item exists here first)
+model Part {
+  id                  Int     @id @default(autoincrement())
+  name                String
+  brand               String
+  category            String // CPU, GPU, RAM, etc
+  basePrice           Float?
+
+  // Relations to specific specs
+  cpuDetails          Cpu?
+  motherboardDetails  Motherboard?
+  ramDetails          Ram?
+  storageDetails      Storage?
+  psuDetails          Psu?
+  gpuDetails          Gpu?
 
   @@map("parts_test")
+}
+
+model Cpu {
+  id        Int   @id @default(autoincrement())
+  part      Part  @relation(fields: [partId], references: [id])
+  partId    Int   @unique
+  socket    String 
+  cores     Int
+  threads   Int
+  wattage   Int
+}
+
+model Motherboard {
+  id            Int   @id @default(autoincrement())
+  part          Part  @relation(fields: [partId], references: [id])
+  partId        Int   @unique
+  socket        String
+  formFactor    String
+  ramSlots      Int
+  hasWifi       Boolean @default(false)
+}
+
+model Ram {
+  id          Int   @id @default(autoincrement())
+  part        Part  @relation(fields: [partId], references: id)
+  partId      Int   @unique
+  capacityGb  Int
+  stickCount  Int
+  speedMhz    Int
+  generation  String
+}
+
+model Storage {
+  id            Int     @id @default(autoincrement())
+  part          Part    @relation(fields: [partId], references: id)
+  partId        Int     @unique
+  capacityGb    Int     // e.g., 1000 (for 1TB)  
+  type          String  //e.g., "SSD", "HDD"
+  interface     String  //e.g., "NVMe", "SATA"
+}
+
+model Psu {
+  id          Int   @id @default(autoincrement())
+  part        Part  @relation(fields: [partId], references: id)
+  partId      Int   @unique
+  wattage     Int
+  efficiency  String  //e.g., "80+ Gold"
+  modularity  String  //e.g., "Full", "Semi", "None"
+  size        String  //e.g., "ATX"
+}
+
+model Gpu {
+  id        Int   @id @default(autoincrement())
+  part      Part  @relation(fields: [partId], references: id)
+  partId    Int   @unique
+  vramGb    Int
+  wattage   Int
 }
