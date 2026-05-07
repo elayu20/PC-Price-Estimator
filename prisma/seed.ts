@@ -79,8 +79,9 @@ async function main() {
     console.log("Starting the database seeding process...");
 
     // --- CPUS ---
+    /*
     console.log("Processing CPUs...");
-    const cpuData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/cpus.json'), 'utf8'));
+    const cpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cpus.json'), 'utf8'));
 
     for (const item of cpuData) {
         // Look up the architecture in dictionary
@@ -104,10 +105,12 @@ async function main() {
             }
         });
     }
+    */
 
     // --- MOTHERBOARDS ---
+    /*
     console.log("Processing Motherboards...");
-    const moboData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/motherboard.json'), 'utf8'));
+    const moboData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/motherboard.json'), 'utf8'));
 
     for (const item of moboData) {
         await prisma.part.create({
@@ -127,10 +130,12 @@ async function main() {
             }
         });
     }
+    */
 
     // -- GPUS --
+    /*
     console.log("Processing GPUs...");
-    const gpuData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/gpus.json'), 'utf8'));
+    const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8'));
     
     for (const item of gpuData) {
         await prisma.part.create({
@@ -147,10 +152,12 @@ async function main() {
             }
         })
     }
+    */
 
     // --- PSUS ---
+    /*
     console.log("Processing PSUs...");
-    const psuData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/psu.json'), 'utf8'));
+    const psuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/psu.json'), 'utf8'));
 
     for (const item of psuData) {
         await prisma.part.create({
@@ -170,12 +177,28 @@ async function main() {
             }
         });
     }
+    */
 
+    /*
     // --- RAM ---
     console.log("Processing RAM...");
-    const ramData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/ram.json'), 'utf8'));
+    const ramData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/ram.json'), 'utf8'));
 
     for (const item of ramData) {
+        // Fallback variables
+        let parsedSpeedMhz = 0;
+        let parsedGeneration = "Unknown";
+
+        // Type Check Logic
+        if (Array.isArray(item.speed) && item.speed.length >= 2) {
+            // If it's modern RAM and formatted as [Gen, Speed]
+            parsedGeneration = "DDR" + item.speed[0];
+            parsedSpeedMhz = item.speed[1];
+        } else if (typeof item.speed === 'number') {
+            // If it's legacy RAM and just a single number
+            parsedSpeedMhz = item.speed;
+        }
+
         await prisma.part.create({
             data: {
                 name: item.name,
@@ -186,19 +209,28 @@ async function main() {
                     create: {
                         capacityGb: item.modules[0] * item.modules[1], // e.g., 2 * 16 = 32GB
                         stickCount: item.modules[0],
-                        speedMhz: item.speed[1],
-                        generation: "DDR" + item.speed[0]
+                        speedMhz: parsedSpeedMhz,
+                        generation: parsedGeneration
                     } 
                 }
             }
         });
     }
+    */
 
     // --- STORAGE ---
+    /*
     console.log("Processing Storage...");
-    const storageData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/storage.json'), 'utf8'));
+    const storageData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/storage.json'), 'utf8'));
 
     for (const item of storageData) {
+        let normalizedType = String(item.type);
+
+        // If the type is a number, it is an HDD
+        if (!isNaN(Number(item.type))) {
+            normalizedType = "HDD";
+        }
+
         await prisma.part.create({
             data: {
                 name: item.name,
@@ -208,12 +240,53 @@ async function main() {
                 storageDetails: {
                     create: {
                         capacityGb: item.capacity,
-                        type: item.tpye,
+                        type: normalizedType,
                         interface: item.interface
                     }
                 }
             }
         });
+    }
+    */
+
+    // --- COOLER ---
+    console.log("Processing Cooler...");
+    const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/Cooler.json'), 'utf8'));
+
+    for (const item of coolerData) {
+        let finalRpm = 0;
+        let finalNoise = 0;
+
+        if (Array.isArray(item.rpm)) {
+            // Take max RPM value, fallback to minimum RPM
+            finalRpm = item.rpm[1] || item.rpm[0];
+        }
+        else {
+            finalRpm = item.rpm;
+        }
+
+        if (Array.isArray(item.noise_level)) {
+            // Take max noise value, fallback to minimum noise
+            finalNoise = item.noise_level[1] || item.noise_level[0];
+        }
+        else {
+            finalNoise = item.noise_level;
+        }
+
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0],
+                category: "Cooler",
+                basePrice: item.price,
+                coolerDetails: {
+                    create: {
+                        rpm: finalRpm,
+                        noise_level: finalNoise
+                    }
+                }
+            }
+        })
     }
 
     console.log("All parts have been successfully uploaded to the database!");

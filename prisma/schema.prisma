@@ -29,6 +29,7 @@ model Part {
   storageDetails      Storage?
   psuDetails          Psu?
   gpuDetails          Gpu?
+  coolerDetails       Cooler?
 
   @@map("parts_test")
 }
@@ -87,4 +88,12 @@ model Gpu {
   part      Part  @relation(fields: [partId], references: [id])
   partId    Int   @unique
   vramGb    Int
+}
+
+model Cooler {
+  id          Int   @id @default(autoincrement())
+  part        Part  @relation(fields: [partId], references: [id])
+  partId      Int   @unique
+  rpm         Int?
+  noise_level Float?
 }
