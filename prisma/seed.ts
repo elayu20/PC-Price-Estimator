@@ -1,0 +1,230 @@
+// IMPORTS
+import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
+
+// INITIALIZATION
+const prisma = new PrismaClient(); // turns engine on
+
+// Maps microarchitecture for desktop cpus into common sockets (covers 99% of standard PC parts)
+const socketMap: Record<string, string> = {
+    // ==========================================
+    // AMD ARCHITECTURES
+    // ==========================================
+  
+    // Modern Mainstream (Ryzen)
+    "Zen 5": "AM5",
+    "Zen 4": "AM5",
+    "Zen 3": "AM4",
+    "Zen 2": "AM4",
+    "Zen+": "AM4",
+    "Zen": "AM4",
+
+    // Modern HEDT (Threadripper)
+    "Zen 4 Threadripper": "sTR5",
+    "Zen 3 Threadripper": "sWRX8", 
+    "Zen 2 Threadripper": "sTRX4",
+    "Zen+ Threadripper": "TR4",
+    "Zen Threadripper": "TR4",
+
+    // Legacy AMD (FX, Athlon, Phenom)
+    "Excavator": "AM4",      // Late APUs
+    "Steamroller": "FM2+",   // Older APUs
+    "Piledriver": "AM3+",    // FX-8350 era
+    "Bulldozer": "AM3+",     // FX-8150 era
+    "K10": "AM3",            // Phenom II era
+    "K8": "AM2",             // Athlon 64 era
+
+    // ==========================================
+    // INTEL ARCHITECTURES
+    // ==========================================
+
+    // Modern Mainstream (Core)
+    "Arrow Lake": "LGA1851",          // Core Ultra 200 Series
+    "Raptor Lake Refresh": "LGA1700", // 14th Gen
+    "Raptor Lake": "LGA1700",         // 13th Gen
+    "Alder Lake": "LGA1700",          // 12th Gen
+    "Rocket Lake": "LGA1200",         // 11th Gen
+    "Comet Lake": "LGA1200",          // 10th Gen
+    "Coffee Lake Refresh": "LGA1151-v2", // 9th Gen
+    "Coffee Lake": "LGA1151-v2",         // 8th Gen
+    "Kaby Lake": "LGA1151-v1",           // 7th Gen
+    "Skylake": "LGA1151-v1",             // 6th Gen
+
+    // Older Mainstream (Core i-Series)
+    "Broadwell": "LGA1150",           // 5th Gen
+    "Haswell": "LGA1150",             // 4th Gen
+    "Ivy Bridge": "LGA1155",          // 3rd Gen
+    "Sandy Bridge": "LGA1155",        // 2nd Gen
+    "Westmere": "LGA1156",            // 1st Gen (Late)
+    "Nehalem": "LGA1156",             // 1st Gen (Early)
+
+    // Legacy Intel (Core 2 Duo/Quad)
+    "Penryn": "LGA775",
+    "Wolfdale": "LGA775",
+    "Conroe": "LGA775",
+    "Prescott": "LGA775",
+
+    // Modern / Legacy HEDT (Core X / Extreme Edition)
+    "Cascade Lake-X": "LGA2066",      // 10th Gen X
+    "Skylake-X": "LGA2066",           // 7th/9th Gen X
+    "Broadwell-E": "LGA2011-v3",      // 6th Gen Extreme
+    "Haswell-E": "LGA2011-v3",        // 5th Gen Extreme
+    "Ivy Bridge-E": "LGA2011",        // 4th Gen Extreme
+    "Sandy Bridge-E": "LGA2011",      // 3rd Gen Extreme
+};
+
+// MAIN FUNC
+async function main() {
+    console.log("Starting the database seeding process...");
+
+    // --- CPUS ---
+    console.log("Processing CPUs...");
+    const cpuData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/cpus.json'), 'utf8'));
+
+    for (const item of cpuData) {
+        // Look up the architecture in dictionary
+        // If it's not found, default to "Unknown"
+        const detectedSocket = socketMap[item.microarchitecture] || "Unknown";
+
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0], // Grabs AMD or Intel from the start of the name
+                category: "CPU",
+                basePrice: item.price,
+                cpuDetails: {
+                    create: {
+                        socket: detectedSocket,
+                        cores: item.core_count,
+                        threads: item.core_count * 2,
+                        wattage: item.tdp,
+                    }
+                }
+            }
+        });
+    }
+
+    // --- MOTHERBOARDS ---
+    console.log("Processing Motherboards...");
+    const moboData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/motherboard.json'), 'utf8'));
+
+    for (const item of moboData) {
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0],
+                category: "Motherboard",
+                basePrice: item.price,
+                motherboardDetails: {
+                    create: {
+                        socket: item.socket,
+                        formFactor: item.form_factor,
+                        ramSlots: item.memory_slots,
+                        hasWifi: item.name.includes("WIFI")
+                    }
+                }
+            }
+        });
+    }
+
+    // -- GPUS --
+    console.log("Processing GPUs...");
+    const gpuData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/gpus.json'), 'utf8'));
+    
+    for (const item of gpuData) {
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0],
+                category: "GPU",
+                basePrice: item.price,
+                gpuDetails: {
+                    create: {
+                        vramGb: item.memory
+                    }
+                }
+            }
+        })
+    }
+
+    // --- PSUS ---
+    console.log("Processing PSUs...");
+    const psuData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/psu.json'), 'utf8'));
+
+    for (const item of psuData) {
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0],
+                category: "PSU",
+                basePrice: item.price,
+                psuDetails: {
+                    create: {
+                        wattage: item.wattage,
+                        efficiency: item.efficiency || "None",
+                        modularity: item.modular === false ? "None" : String(item.modular),
+                        size: item.type
+                    }
+                }
+            }
+        });
+    }
+
+    // --- RAM ---
+    console.log("Processing RAM...");
+    const ramData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/ram.json'), 'utf8'));
+
+    for (const item of ramData) {
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0],
+                category: "RAM",
+                basePrice: item.price,
+                ramDetails: {
+                    create: {
+                        capacityGb: item.modules[0] * item.modules[1], // e.g., 2 * 16 = 32GB
+                        stickCount: item.modules[0],
+                        speedMhz: item.speed[1],
+                        generation: "DDR" + item.speed[0]
+                    } 
+                }
+            }
+        });
+    }
+
+    // --- STORAGE ---
+    console.log("Processing Storage...");
+    const storageData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/storage.json'), 'utf8'));
+
+    for (const item of storageData) {
+        await prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0],
+                category: "Storage",
+                basePrice: item.price,
+                storageDetails: {
+                    create: {
+                        capacityGb: item.capacity,
+                        type: item.tpye,
+                        interface: item.interface
+                    }
+                }
+            }
+        });
+    }
+
+    console.log("All parts have been successfully uploaded to the database!");
+}
+
+// EXECUTION AND ERROR HANDLING
+main()
+    .catch((e) => {
+        console.error("An error occured: ", e);
+        process.exit(1);
+    })
+    .finally(async() => {
+        await prisma.$disconnect();
+    })
