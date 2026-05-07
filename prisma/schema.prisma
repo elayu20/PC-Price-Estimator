@@ -55,7 +55,7 @@ model Motherboard {
 
 model Ram {
   id          Int   @id @default(autoincrement())
-  part        Part  @relation(fields: [partId], references: id)
+  part        Part  @relation(fields: [partId], references: [id])
   partId      Int   @unique
   capacityGb  Int
   stickCount  Int
@@ -65,7 +65,7 @@ model Ram {
 
 model Storage {
   id            Int     @id @default(autoincrement())
-  part          Part    @relation(fields: [partId], references: id)
+  part          Part    @relation(fields: [partId], references: [id])
   partId        Int     @unique
   capacityGb    Int     // e.g., 1000 (for 1TB)  
   type          String  //e.g., "SSD", "HDD"
@@ -74,18 +74,17 @@ model Storage {
 
 model Psu {
   id          Int   @id @default(autoincrement())
-  part        Part  @relation(fields: [partId], references: id)
+  part        Part  @relation(fields: [partId], references: [id])
   partId      Int   @unique
   wattage     Int
-  efficiency  String  //e.g., "80+ Gold"
+  efficiency  String?  //e.g., "80+ Gold"
   modularity  String  //e.g., "Full", "Semi", "None"
   size        String  //e.g., "ATX"
 }
 
 model Gpu {
   id        Int   @id @default(autoincrement())
-  part      Part  @relation(fields: [partId], references: id)
+  part      Part  @relation(fields: [partId], references: [id])
   partId    Int   @unique
   vramGb    Int
-  wattage   Int
 }
