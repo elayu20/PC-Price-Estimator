@@ -28,7 +28,7 @@ export default function Home() {
   // Fetch prices.json
   useEffect(() => {
     // This runs once when the page first loads
-    fetch("/prices.json")
+    fetch("/api/parts")
       .then((res) => res.json())
       .then((data) => {
         console.log("Loaded prices:", data);
