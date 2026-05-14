@@ -17,6 +17,53 @@ interface CpuJson {
     tdp: number;
 }
 
+// Define Motherboard in JSON data
+interface MotherboardJson {
+    name: string;
+    price: number;
+    socket: string;
+    form_factor: string;
+    memory_slots: number;
+}
+
+interface GpuJson {
+    name: string;
+    price: number;
+    chipset: string;
+    memory: number;
+}
+
+interface PsuJson {
+    name: string;
+    price: number;
+    type: string;
+    efficiency: string;
+    modular: string;
+    wattage: number;
+}
+
+interface RamJson {
+    name: string;
+    price: number;
+    speed: number | number[];
+    modules: [number, number];
+}
+
+interface StorageJson {
+    name: string;
+    price: number;
+    type: string | number;
+    capacity: number;
+    interface: string;
+}
+
+interface CoolerJson {
+    name: string;
+    price: number;
+    rpm: number | number[];
+    noise_level: number | number[];
+}
+
 // Maps microarchitecture for desktop cpus into common sockets (covers 99% of standard PC parts)
 const socketMap: Record<string, string> = {
     // ==========================================
@@ -130,13 +177,14 @@ async function main() {
     // --- MOTHERBOARDS ---
     
     console.log("Processing Motherboards...");
-    const moboData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/motherboard.json'), 'utf8'));
+    const moboData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/motherboard.json'), 'utf8')) as MotherboardJson[];
 
-    for (const item of moboData) {
-        await prisma.part.create({
+    await seedInBatches(moboData, BATCH_SIZE, (item) => {
+
+        return prisma.part.create({
             data: {
                 name: item.name,
-                brand: item.name.split(" ")[0],
+                brand: item.name.split(" ")[0] || "Unknown",
                 category: "Motherboard",
                 basePrice: item.price,
                 motherboardDetails: {
@@ -148,19 +196,19 @@ async function main() {
                     }
                 }
             }
-        });
-    }
-    
+        })
+    })
+
 
     // -- GPUS --
     console.log("Processing GPUs...");
-    const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8'));
+    const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8')) as GpuJson[];
     
-    for (const item of gpuData) {
-        await prisma.part.create({
+    await seedInBatches(gpuData, BATCH_SIZE, (item) => {
+        return prisma.part.create({
             data: {
                 name: item.name,
-                brand: item.name.split(" ")[0],
+                brand: item.name.split(" ")[0] || "Unknown",
                 category: "GPU",
                 basePrice: item.price,
                 gpuDetails: {
@@ -171,39 +219,38 @@ async function main() {
                 }
             }
         })
-    }
+    })
 
     // --- PSUS ---
     
     console.log("Processing PSUs...");
-    const psuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/psu.json'), 'utf8'));
+    const psuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/psu.json'), 'utf8')) as PsuJson[];
 
-    for (const item of psuData) {
-        await prisma.part.create({
+    await seedInBatches(psuData, BATCH_SIZE, (item) => {
+        return prisma.part.create({
             data: {
                 name: item.name,
-                brand: item.name.split(" ")[0],
+                brand: item.name.split(" ")[0] || "Unknown",
                 category: "PSU",
                 basePrice: item.price,
                 psuDetails: {
                     create: {
                         wattage: item.wattage,
                         efficiency: item.efficiency || "None",
-                        modularity: item.modular === false ? "None" : String(item.modular),
+                        modularity: item.modular || "None",
                         size: item.type
                     }
                 }
             }
         });
-    }
-    
+    })
 
     
     // --- RAM ---
     console.log("Processing RAM...");
-    const ramData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/ram.json'), 'utf8'));
+    const ramData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/ram.json'), 'utf8')) as RamJson[] ;
 
-    for (const item of ramData) {
+    await seedInBatches(ramData, BATCH_SIZE, (item) => {
         // Fallback variables
         let parsedSpeedMhz = 0;
         let parsedGeneration = "Unknown";
@@ -212,16 +259,16 @@ async function main() {
         if (Array.isArray(item.speed) && item.speed.length >= 2) {
             // If it's modern RAM and formatted as [Gen, Speed]
             parsedGeneration = "DDR" + item.speed[0];
-            parsedSpeedMhz = item.speed[1];
+            parsedSpeedMhz = item.speed[1] || 0;
         } else if (typeof item.speed === 'number') {
             // If it's legacy RAM and just a single number
             parsedSpeedMhz = item.speed;
         }
 
-        await prisma.part.create({
+        return prisma.part.create({
             data: {
                 name: item.name,
-                brand: item.name.split(" ")[0],
+                brand: item.name.split(" ")[0] || "Unknown",
                 category: "RAM",
                 basePrice: item.price,
                 ramDetails: {
@@ -234,15 +281,15 @@ async function main() {
                 }
             }
         });
-    }
+    })
     
 
     // --- STORAGE ---
     
     console.log("Processing Storage...");
-    const storageData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/storage.json'), 'utf8'));
+    const storageData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/storage.json'), 'utf8')) as StorageJson[];
 
-    for (const item of storageData) {
+    await seedInBatches(storageData, BATCH_SIZE, (item) => {
         let normalizedType = String(item.type);
 
         // If the type is a number, it is an HDD
@@ -250,10 +297,10 @@ async function main() {
             normalizedType = "HDD";
         }
 
-        await prisma.part.create({
+        return prisma.part.create({
             data: {
                 name: item.name,
-                brand: item.name.split(" ")[0],
+                brand: item.name.split(" ")[0] || "Unknown",
                 category: "Storage",
                 basePrice: item.price,
                 storageDetails: {
@@ -265,21 +312,20 @@ async function main() {
                 }
             }
         });
-    }
-    
+    })
 
     // --- COOLER ---
     
     console.log("Processing Cooler...");
-    const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/Cooler.json'), 'utf8'));
+    const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/Cooler.json'), 'utf8')) as CoolerJson[];
 
-    for (const item of coolerData) {
+    await seedInBatches(coolerData, BATCH_SIZE, (item) => {
         let finalRpm = 0;
         let finalNoise = 0;
 
         if (Array.isArray(item.rpm)) {
             // Take max RPM value, fallback to minimum RPM
-            finalRpm = item.rpm[1] || item.rpm[0];
+            finalRpm = item.rpm[1] || item.rpm[0] || 0;
         }
         else {
             finalRpm = item.rpm;
@@ -287,16 +333,16 @@ async function main() {
 
         if (Array.isArray(item.noise_level)) {
             // Take max noise value, fallback to minimum noise
-            finalNoise = item.noise_level[1] || item.noise_level[0];
+            finalNoise = item.noise_level[1] || item.noise_level[0] || 0;
         }
         else {
             finalNoise = item.noise_level;
         }
 
-        await prisma.part.create({
+        return prisma.part.create({
             data: {
                 name: item.name,
-                brand: item.name.split(" ")[0],
+                brand: item.name.split(" ")[0] || "Unknown",
                 category: "Cooler",
                 basePrice: item.price,
                 coolerDetails: {
@@ -307,7 +353,7 @@ async function main() {
                 }
             }
         })
-    }
+    })
     
 
     console.log("All parts have been successfully uploaded to the database!");
