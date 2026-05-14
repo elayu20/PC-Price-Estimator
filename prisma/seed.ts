@@ -207,7 +207,7 @@ async function main() {
     await seedInBatches(gpuData, BATCH_SIZE, (item) => {
         return prisma.part.create({
             data: {
-                name: item.name,
+                name: item.name + item.chipset,
                 brand: item.name.split(" ")[0] || "Unknown",
                 category: "GPU",
                 basePrice: item.price,
