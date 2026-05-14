@@ -87,6 +87,7 @@ model Gpu {
   id        Int   @id @default(autoincrement())
   part      Part  @relation(fields: [partId], references: [id])
   partId    Int   @unique
+  chipset   String
   vramGb    Int
 }
 

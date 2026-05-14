@@ -77,38 +77,43 @@ const socketMap: Record<string, string> = {
 // MAIN FUNC
 async function main() {
     console.log("Starting the database seeding process...");
+    const BATCH_SIZE = 50;
 
     // --- CPUS ---
-    /*
+    
     console.log("Processing CPUs...");
     const cpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cpus.json'), 'utf8'));
 
-    for (const item of cpuData) {
-        // Look up the architecture in dictionary
-        // If it's not found, default to "Unknown"
-        const detectedSocket = socketMap[item.microarchitecture] || "Unknown";
+    for (let i = 0; i < cpuData.length; i += BATCH_SIZE) {
+        const batch = cpuData.slice(i, i + BATCH_SIZE);
 
-        await prisma.part.create({
-            data: {
-                name: item.name,
-                brand: item.name.split(" ")[0], // Grabs AMD or Intel from the start of the name
-                category: "CPU",
-                basePrice: item.price,
-                cpuDetails: {
-                    create: {
-                        socket: detectedSocket,
-                        cores: item.core_count,
-                        threads: item.core_count * 2,
-                        wattage: item.tdp,
+        await Promise.all(batch.map((item) => {
+            // Look up the architecture in dictionary
+            // If it's not found, default to "Unknown"
+            const detectedSocket = socketMap[item.microarchitecture] || "Unknown";
+
+            return prisma.part.create({
+                data: {
+                    name: item.name,
+                    brand: item.name.split(" ")[0], // Grabs AMD or Intel from the start of the name
+                    category: "CPU",
+                    basePrice: item.price,
+                    cpuDetails: {
+                        create: {
+                            socket: detectedSocket,
+                            cores: item.core_count,
+                            threads: item.core_count * 2,
+                            wattage: item.tdp,
+                        }
                     }
                 }
-            }
-        });
-    }
-    */
+            });
+        }) 
+    )};
+    
 
     // --- MOTHERBOARDS ---
-    /*
+    
     console.log("Processing Motherboards...");
     const moboData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/motherboard.json'), 'utf8'));
 
@@ -130,10 +135,9 @@ async function main() {
             }
         });
     }
-    */
+    
 
     // -- GPUS --
-    /*
     console.log("Processing GPUs...");
     const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8'));
     
@@ -146,16 +150,16 @@ async function main() {
                 basePrice: item.price,
                 gpuDetails: {
                     create: {
+                        chipset: item.chipset,
                         vramGb: item.memory
                     }
                 }
             }
         })
     }
-    */
 
     // --- PSUS ---
-    /*
+    
     console.log("Processing PSUs...");
     const psuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/psu.json'), 'utf8'));
 
@@ -177,9 +181,9 @@ async function main() {
             }
         });
     }
-    */
+    
 
-    /*
+    
     // --- RAM ---
     console.log("Processing RAM...");
     const ramData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/ram.json'), 'utf8'));
@@ -216,10 +220,10 @@ async function main() {
             }
         });
     }
-    */
+    
 
     // --- STORAGE ---
-    /*
+    
     console.log("Processing Storage...");
     const storageData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/storage.json'), 'utf8'));
 
@@ -247,9 +251,10 @@ async function main() {
             }
         });
     }
-    */
+    
 
     // --- COOLER ---
+    
     console.log("Processing Cooler...");
     const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/Cooler.json'), 'utf8'));
 
@@ -288,6 +293,7 @@ async function main() {
             }
         })
     }
+    
 
     console.log("All parts have been successfully uploaded to the database!");
 }

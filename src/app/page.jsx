@@ -25,7 +25,7 @@ export default function Home() {
     cooler: null,
   });
 
-  // Fetch prices.json
+  // Fetch prices from db
   useEffect(() => {
     // This runs once when the page first loads
     fetch("/api/parts")
