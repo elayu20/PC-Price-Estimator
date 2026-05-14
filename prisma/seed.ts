@@ -6,6 +6,17 @@ import path from 'path';
 // INITIALIZATION
 const prisma = new PrismaClient(); // turns engine on
 
+// INTERFACES
+
+// Define what a CPU object looks like in JSON data
+interface CpuJson {
+    name: string;
+    price: number;
+    microarchitecture: string;
+    core_count: number;
+    tdp: number;
+}
+
 // Maps microarchitecture for desktop cpus into common sockets (covers 99% of standard PC parts)
 const socketMap: Record<string, string> = {
     // ==========================================
@@ -74,6 +85,15 @@ const socketMap: Record<string, string> = {
     "Sandy Bridge-E": "LGA2011",      // 3rd Gen Extreme
 };
 
+// Batch helper function
+async function seedInBatches<T>(dataArray: T[], batchSize: number, createFunction: (item: T) => Promise<any>) {
+    for (let i = 0; i < dataArray.length; i+= batchSize) {
+        const batch = dataArray.slice(i, i + batchSize);
+        await Promise.all(batch.map(item => createFunction(item)));
+        console.log(`...seeded ${Math.min(i + batchSize, dataArray.length)} of ${dataArray.length}`)
+    }
+}
+
 // MAIN FUNC
 async function main() {
     console.log("Starting the database seeding process...");
@@ -82,35 +102,30 @@ async function main() {
     // --- CPUS ---
     
     console.log("Processing CPUs...");
-    const cpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cpus.json'), 'utf8'));
+    const cpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cpus.json'), 'utf8')) as CpuJson[];
 
-    for (let i = 0; i < cpuData.length; i += BATCH_SIZE) {
-        const batch = cpuData.slice(i, i + BATCH_SIZE);
+    await seedInBatches(cpuData, BATCH_SIZE, (item) => {
+        // Look up the architecture in dictionary
+        // If it's not found, default to "Unknown"
+        const detectedSocket = socketMap[item.microarchitecture] || "Unknown";
 
-        await Promise.all(batch.map((item) => {
-            // Look up the architecture in dictionary
-            // If it's not found, default to "Unknown"
-            const detectedSocket = socketMap[item.microarchitecture] || "Unknown";
-
-            return prisma.part.create({
-                data: {
-                    name: item.name,
-                    brand: item.name.split(" ")[0], // Grabs AMD or Intel from the start of the name
-                    category: "CPU",
-                    basePrice: item.price,
-                    cpuDetails: {
-                        create: {
-                            socket: detectedSocket,
-                            cores: item.core_count,
-                            threads: item.core_count * 2,
-                            wattage: item.tdp,
-                        }
+        return prisma.part.create({
+            data: {
+                name: item.name,
+                brand: item.name.split(" ")[0] || "Unknown", // Grabs AMD or Intel from the start of the name
+                category: "CPU",
+                basePrice: item.price,
+                cpuDetails: {
+                    create: {
+                        socket: detectedSocket,
+                        cores: item.core_count,
+                        threads: item.core_count * 2,
+                        wattage: item.tdp,
                     }
                 }
-            });
-        }) 
-    )};
-    
+            }
+        });
+    }) 
 
     // --- MOTHERBOARDS ---
     
