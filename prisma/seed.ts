@@ -144,7 +144,7 @@ async function seedInBatches<T>(dataArray: T[], batchSize: number, createFunctio
 // MAIN FUNC
 async function main() {
     console.log("Starting the database seeding process...");
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 200;
 
     // --- CPUS ---
     
@@ -207,7 +207,7 @@ async function main() {
     await seedInBatches(gpuData, BATCH_SIZE, (item) => {
         return prisma.part.create({
             data: {
-                name: item.name + item.chipset,
+                name: item.name + " " + item.chipset,
                 brand: item.name.split(" ")[0] || "Unknown",
                 category: "GPU",
                 basePrice: item.price,
