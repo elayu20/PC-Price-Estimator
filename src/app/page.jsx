@@ -1,10 +1,16 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import PartSelect from "../../components/PartSelect";
 import { saveBuild, loadBuild, clearBuild } from "../../utils/buildStorage";
 import BuildControls from "../../components/BuildControls";
+import { match } from "node:assert";
 
 export default function Home() {
+  // For ram options dropdown
+  const [ramSticks, setRamSticks] = useState("");
+  const [ramGen, setRamGen] = useState("");
+  const [ramCap, setRamCap] = useState("");
+
   const [cpu, setCpu] = useState("");
   const [gpu, setGpu] = useState("");
   const [ram, setRam] = useState("");
@@ -38,6 +44,25 @@ export default function Home() {
         console.error("Failed to load prices.json", err);
       })
   }, [])
+
+  // Filter logic for RAM
+  const filteredRamOptions = useMemo(() => {
+    if (!prices?.ram) return {};
+
+    return Object.fromEntries(
+      Object.entries(prices.ram).filter(([name, data]) => {
+        const specs = data.specs;
+
+        // If a filter is selected, the part MUST match it
+        // If no filter is selected (empty string), we ignore that check
+        const matchesSticks = ramSticks === "" || String(specs.stickCount === ramSticks);
+        const matchesGen = ramGen === "" || specs.generation === ramGen;
+        const matchesCap = ramCap === "" || String(specs.capacityGb) === ramCap;
+
+        return matchesSticks && matchesGen && matchesCap;
+      })
+    );
+  }, [prices?.ram, ramSticks, ramGen, ramCap]);
 
   // Helper to get eBay price first, then fallabck to databes price
   const getBestPrice = (category, partName, livePrice) => {
@@ -209,14 +234,26 @@ export default function Home() {
           /> 
         </div>
 
-        {/* --- RAM --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="RAM" 
-            value={ram} 
-            setValue={(val) => { setRam(val); fetchIndividualPrice("ram", val); }} 
-            options={prices?.ram}
-          /> 
+        {/* --- RAM WITH MINI FILTERS --- */}
+        <div style={{ marginBottom: "12px", border: "1px solid #ddd", padding: "12px", borderRadius: "8px" }}>
+          <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
+            <select value={ramSticks} onChange={(e) => setRamSticks(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+              <option value="">Any Sticks</option>
+              {[1, 2, 4, 8].map(num => <option key={num} value={num}>{num} Sticks</option>)}
+            </select>
+
+            <select value={ramGen} onChange={(e) => setRamGen(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+              <option value="">Any Gen</option>
+              {["DDR3", "DDR4", "DDR5"].map(gen => <option key={gen} value={gen}>{gen}</option>)}
+            </select>
+
+            <select value={ramCap} onChange={(e) => setRamCap(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+              <option value="">Any Capacity</option>
+              {[8, 16, 32, 64, 128].map(cap => <option key={cap} value={cap}>{cap}GB Total</option>)}
+            </select>
+          </div>
+
+          <PartSelect label="RAM" value={ram} setValue={(val) => { setRam(val); fetchIndividualPrice("ram", val); }} options={filteredRamOptions} /> 
         </div>
 
         {/* --- MOTHERBOARD --- */}
