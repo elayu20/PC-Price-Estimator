@@ -6,8 +6,18 @@ const prisma = new PrismaClient();
 
 export async function GET() {
     try {
-        // Tell Prisma to get every single part from 'parts' table
-        const allParts = await prisma.part.findMany();
+        // Tell Prisma to get every single part and all their specific details
+        const allParts = await prisma.part.findMany({
+            include: {
+                cpuDetails: true,
+                gpuDetails: true,
+                motherboardDetails: true,
+                ramDetails: true,
+                storageDetails: true,
+                psuDetails: true,
+                coolerDetails: true,
+            }
+        });
         
         // Set up an empty object that looks exactly like old prices.json
         const formattedData = {
@@ -27,9 +37,15 @@ export async function GET() {
 
             // If the category exists in formattedData object, add the part
             if (formattedData[categoryKey] !== undefined) {
-                // Creates structure { item_name: price }
-                // Use basePrice. If null, default to 0
-                formattedData[categoryKey][part.name] = part.basePrice || 0;
+                // Find which specific detail object belongs to this part
+                // Grab the one that isn't null
+                const details = part.cpuDetails || part.gpuDetails || part.motherboardDetails || part.ramDetails || part.storageDetails || part.psuDetails || part.coolerDetails || {};
+
+                // Send an object with both price and specs
+                formattedData[categoryKey][part.name] = {
+                    price: part.basePrice || 0,
+                    specs: details
+                };
             }
         });
 
