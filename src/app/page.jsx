@@ -49,13 +49,15 @@ export default function Home() {
   const filteredRamOptions = useMemo(() => {
     if (!prices?.ram) return {};
 
+    console.log("Sample RAM spec:", Object.values(prices.ram)[0]?.specs);
+
     return Object.fromEntries(
       Object.entries(prices.ram).filter(([name, data]) => {
         const specs = data.specs;
 
         // If a filter is selected, the part MUST match it
         // If no filter is selected (empty string), we ignore that check
-        const matchesSticks = ramSticks === "" || String(specs.stickCount === ramSticks);
+        const matchesSticks = ramSticks === "" || Number(specs.stickCount) === Number(ramSticks);
         const matchesGen = ramGen === "" || specs.generation === ramGen;
         const matchesCap = ramCap === "" || String(specs.capacityGb) === ramCap;
 
