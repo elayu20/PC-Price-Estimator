@@ -274,6 +274,7 @@ async function main() {
                 ramDetails: {
                     create: {
                         capacityGb: item.modules[0] * item.modules[1], // e.g., 2 * 16 = 32GB
+                        stickSize: item.modules[1],
                         stickCount: item.modules[0],
                         speedMhz: parsedSpeedMhz,
                         generation: parsedGeneration

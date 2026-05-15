@@ -59,6 +59,7 @@ model Ram {
   part        Part  @relation(fields: [partId], references: [id])
   partId      Int   @unique
   capacityGb  Int
+  stickSize Int
   stickCount  Int
   speedMhz    Int
   generation  String
