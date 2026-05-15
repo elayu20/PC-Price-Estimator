@@ -39,14 +39,21 @@ export default function Home() {
       })
   }, [])
 
-  // Only read prices if prices are loaded
-  const cpuPrice = individualLivePrices.cpu || 0;
-  const gpuPrice = individualLivePrices.gpu || 0;
-  const ramPrice = individualLivePrices.ram || 0;
-  const storagePrice = individualLivePrices.storage || 0;
-  const motherboardPrice = individualLivePrices.motherboard || 0;
-  const psuPrice = individualLivePrices.psu || 0;
-  const coolerPrice = individualLivePrices.cooler || 0;
+  // Helper to get eBay price first, then fallabck to databes price
+  const getBestPrice = (category, partName, livePrice) => {
+    if (!partName) return 0; // Nothing selected
+    if (livePrice && livePrice > 0) return livePrice; // use eBay if available
+    return prices[category]?.[partName]?.price || 0; // Fallback to DB
+  }
+
+  const cpuPrice = getBestPrice("cpu", cpu, individualLivePrices.cpu);
+  const gpuPrice = getBestPrice("gpu", gpu, individualLivePrices.gpu);
+  const ramPrice = getBestPrice("ram", ram, individualLivePrices.ram);
+  const storagePrice = getBestPrice("storage", storage, individualLivePrices.storage);
+  const motherboardPrice = getBestPrice("motherboard", motherboard, individualLivePrices.motherboard);
+  const psuPrice = getBestPrice("psu", psu, individualLivePrices.psu);
+  const coolerPrice = getBestPrice("cooler", cooler, individualLivePrices.cooler);
+
   const total = cpuPrice + gpuPrice + ramPrice + storagePrice + motherboardPrice + psuPrice + coolerPrice; 
 
   const build = {

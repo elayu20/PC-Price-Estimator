@@ -96,7 +96,7 @@ export default function PartSelect({ label, value, setValue, options }) {
                     boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
                 }}>
                     {limitedEntries.length > 0 ? (
-                        limitedEntries.map(([name, price]) => (
+                        limitedEntries.map(([name, data]) => (
                             <li
                                 key={name}
                                 // We use onMouseDown instead of onClick
@@ -105,7 +105,7 @@ export default function PartSelect({ label, value, setValue, options }) {
                                     padding: "8px",
                                     cursor: "pointer",
                                     borderBottom: "1px solid #eee",
-                                    color: "black"
+                                    color: "black",
                                 }}
                             >
                                 {name}
