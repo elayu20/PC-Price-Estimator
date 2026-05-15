@@ -96,21 +96,47 @@ export default function PartSelect({ label, value, setValue, options }) {
                     boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
                 }}>
                     {limitedEntries.length > 0 ? (
-                        limitedEntries.map(([name, data]) => (
-                            <li
-                                key={name}
-                                // We use onMouseDown instead of onClick
-                                onMouseDown={() => handleSelect(name)}
-                                style={{
-                                    padding: "8px",
-                                    cursor: "pointer",
-                                    borderBottom: "1px solid #eee",
-                                    color: "black",
-                                }}
-                            >
-                                {name}
-                            </li>
-                        ))
+                        limitedEntries.map(([name, data]) => {
+                            // Extract specs to build a helpful label
+                            const s = data.specs || {};
+                            let specLabel = "";
+
+                            // Check what kind of part it is to show the right specs
+                            if (label === "RAM" && s.generation) {
+                                specLabel = `${s.generation}-${s.speedMhz} MHz | ${s.stickCount} x ${s.capacityGb / s.stickCount}GB`;
+                            }
+                            else if (label === "CPU" && s.socket) {
+                                specLabel = `${s.socket} | ${s.cores} Cores`;
+                            }
+                            else if (label === "GPU" && s.chipset) {
+                                specLabel = `${s.vramGb}GB | ${s.chipset}`;
+                            }
+
+                            return (
+                                <li
+                                    key={name}
+                                    // We use onMouseDown instead of onClick
+                                    onMouseDown={() => handleSelect(name)}
+                                    style={{
+                                        padding: "10px 8px",
+                                        cursor: "pointer",
+                                        borderBottom: "1px solid #eee",
+                                        color: "black",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: "4px"
+                                    }}
+                                >
+                                    <span style={{ fontWeight: "500" }}>{name}</span>
+
+                                    {specLabel && (
+                                        <span style={{ color: "#666", fontSize: "0.85em" }}>
+                                            {specLabel}
+                                        </span>
+                                    )}
+                                </li>
+                            );
+                        })
                     ) : (
                         <li style={{ padding: "8px", color: "#888" }}>
                             No matches found
