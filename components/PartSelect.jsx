@@ -111,6 +111,25 @@ export default function PartSelect({ label, value, setValue, options }) {
                             else if (label === "GPU" && s.chipset) {
                                 specLabel = `${s.vramGb}GB | ${s.chipset}`;
                             }
+                            else if (label === "Motherboard" && s.socket) {
+                                const wifiText = s.hasWifi ? " | WiFi" : "";
+                                specLabel = `${s.socket} | ${s.formFactor} | ${s.ramSlots} RAM Slots${wifiText}`;
+                            }
+                            else if (label === "Storage" && s.capacityGb) {
+                                let capacityText = s.capacityGb >= 1000
+                                    ? `${(s.capacityGb / 1000).toFixed(1).replace('.0', '')}TB`
+                                    : `${s.capacityGb}GB`;
+
+                                specLabel = `${capacityText} | ${s.type} | ${s.interface}`;
+                            }
+                            else if (label === "PSU" && s.wattage) {
+                                const efficiencyText = s.efficiency && s.efficiency !== "None" ? s.efficiency : "Standard";
+                                const modularText = s.modularity !== "None" ? `${s.modularity} Modularity` : "Non-Modular";
+                                specLabel = `${s.wattage}W | ${efficiencyText} | ${modularText}`;
+                            }
+                            else if (label === "Cooler" && s.rpm) {
+                                specLabel = `${s.rpm} RPM | ${s.noise_level} dB`;
+                            }
 
                             return (
                                 <li
