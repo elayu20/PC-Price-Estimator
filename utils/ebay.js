@@ -34,8 +34,8 @@ export async function searchEbay(keyword) {
 
     // Format the eBay Search URL
     // We use encodedURIComponent to turn spaces into %20 (e.ge, RTX 4090 -> RTX%204090)
-    // limit=3 tells eBay we only want the top 3 results to keep the data small
-    const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(keyword)}&limited=3`;
+    // limit=3 tells eBay we only want the top 20 results to keep the data small but accurate to account for inconsistent listings
+    const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(keyword)}&limit=20`;
 
     try {
         // Send the request with the token attached
