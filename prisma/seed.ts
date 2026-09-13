@@ -201,6 +201,7 @@ async function main() {
 
 
     // -- GPUS --
+
     console.log("Processing GPUs...");
     const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8')) as GpuJson[];
     
@@ -244,7 +245,6 @@ async function main() {
             }
         });
     })
-
     
     // --- RAM ---
     console.log("Processing RAM...");
@@ -282,8 +282,7 @@ async function main() {
                 }
             }
         });
-    })
-    
+    })    
 
     // --- STORAGE ---
     
@@ -318,7 +317,7 @@ async function main() {
     // --- COOLER ---
     
     console.log("Processing Cooler...");
-    const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/Cooler.json'), 'utf8')) as CoolerJson[];
+    const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cooler.json'), 'utf8')) as CoolerJson[];
 
     await seedInBatches(coolerData, BATCH_SIZE, (item) => {
         let finalRpm = 0;
