@@ -20,15 +20,16 @@ export async function GET(request) {
         return NextResponse.json({ price_cad: 0 });
     }
 
-    // Grab the price of the first three result
-    const firstItem = results.itemSummaries[0];
-    const firstItemPrice = Number(firstItem.price.value);
-    const secondItem = results.itemSummaries[1];
-    const secondItemPrice = Number(secondItem.price.value);
-    const thirdItem = results.itemSummaries[2];
-    const thirdItemPrice = Number(thirdItem.price.value);
+    // Average the price across all returned listings with a valid price
+    const prices = results.itemSummaries
+        .map(item => Number(item?.price?.value))
+        .filter(price => !isNaN(price));
 
-    const totalItemPrice = (firstItemPrice + secondItemPrice + thirdItemPrice) / 3;
+    if (prices.length === 0) {
+        return NextResponse.json({ price_cad: 0});
+    }
+
+    const totalItemPrice = prices.reduce((sum, price) => sum + price, 0) / prices.length;
 
     // Send just the clean number back
     return NextResponse.json({ price_cad: totalItemPrice });
