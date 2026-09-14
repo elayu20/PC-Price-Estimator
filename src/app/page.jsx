@@ -31,6 +31,20 @@ export default function Home() {
     cooler: null,
   });
 
+    // Tracks, per part, whether we tried to fetch a live price and failed
+    // (either the API call errored, or eBay had no usable listings)
+    // This is what lets us show "Price unavailable" instead of silently
+    // showing a made-up number
+    const [priceErrors, setPriceErrors] = useState({
+        cpu: false,
+        gpu: false,
+        ram: false,
+        motherboard: false,
+        storage: false,
+        psu: false,
+        cooler: false,
+    });
+
   // Fetch prices from db
   useEffect(() => {
     // This runs once when the page first loads
@@ -66,11 +80,11 @@ export default function Home() {
     );
   }, [prices?.ram, ramSticks, ramGen, ramCap]);
 
-  // Helper to get eBay price first, then fallabck to databes price
+  // Helper to get eBay price first, then fallabck to a price of 0
+    // Let UI flag it as unavailable
   const getBestPrice = (category, partName, livePrice) => {
     if (!partName) return 0; // Nothing selected
-    if (livePrice && livePrice > 0) return livePrice; // use eBay if available
-    return prices[category]?.[partName]?.price || 0; // Fallback to DB
+    return livePrice && livePrice > 0 ? livePrice: 0; 
   }
 
   const cpuPrice = getBestPrice("cpu", cpu, individualLivePrices.cpu);
@@ -141,6 +155,16 @@ export default function Home() {
       cooler: null,
     });
 
+    setPriceErrors({
+        cpu: false,
+        gpu: false,
+        ram: false,
+        motherboard: false,
+        storage: false,
+        psu: false,
+        cooler: false,
+    });
+
     // Reset the live total
     setLiveEbayTotal(null);
   }
@@ -183,9 +207,10 @@ export default function Home() {
 
   // Fetches the price for one specific part and saves it to state
   async function fetchIndividualPrice(partType, partName) {
-    // If the user selected "Choose a CPU..." (empty string), reset the price to null
+    // If the user selected "Choose a CPU..." (empty string), reset the price and error
     if (!partName) {
       setIndividualLivePrices(prev => ({ ...prev, [partType]: null}));
+      setPriceErrors(prev => ({ ...prev, [partType]: false}));
       return;
     }
 
@@ -197,12 +222,22 @@ export default function Home() {
 
       const data = await response.json();
 
-      // Update the specific part's price in memory bank
-      if (data.price_cad) {
+      // price_cad > 0 means we got a real average from eBay listings
+      // price_cad === 0 means the API found no usable listings - treat that 
+      // as a failure to fetch a price, not a real $0 price
+      if (data.price_cad && data.price_cad > 0) {
         setIndividualLivePrices(prev => ({ ...prev, [partType]: data.price_cad }));
-      }     
+        setPriceErrors(prev => ({ ...prev, [partType]: false }));
+      } else {
+          setIndividualLivePrices(prev => ({ ...prev, [partType]: null }));
+          setPriceErrors(prev => ({ ...prev, [partType]: true }));
+      }
     } catch (error) {
         console.error(`Failed to fetch individual price for ${partName}`, error);
+        // Network/API failure - also mark as unavailable rather than leaving
+        // a stale or misleading price on screen
+        setIndividualLivePrices(prev => ({ ...prev, [partType]: null }));
+        setPriceErrors(prev => ({ ...prev, [partType]: true }));
     }
   }
 
@@ -300,13 +335,36 @@ export default function Home() {
 
         <div style={{ marginTop: "24px", padding: "16px", border: "1px solid #ccc" }}>
           <h3>Build Summary</h3>
-          <p>CPU{cpu=="" ? "" : " " + `(${cpu})`}: ${cpuPrice.toFixed(2)}</p>
-          <p>GPU{gpu=="" ? "" : " " + `(${gpu})`}: ${gpuPrice.toFixed(2)}</p>
-          <p>RAM{ram=="" ? "" : " " + `(${ram})`}: ${ramPrice.toFixed(2)}</p>
-          <p>Motherboard{motherboard=="" ? "" : " " + `(${motherboard})`}: ${motherboardPrice.toFixed(2)}</p>
-          <p>Storage{storage=="" ? "" : " " + `(${storage})`}: ${storagePrice.toFixed(2)}</p>
-          <p>PSU{psu=="" ? "" : " " + `(${psu})`}: ${psuPrice.toFixed(2)}</p>
-          <p>Cooler{cooler=="" ? "" : " " + `(${cooler})`}: ${coolerPrice.toFixed(2)}</p>
+          <p>
+            CPU{cpu=="" ? "" : " " + `(${cpu})`}: {" "}
+            {priceErrors.cpu
+                ? "Price unavailable"
+                : `$${cpuPrice.toFixed(2)}`}
+          </p>
+          <p>
+            GPU{gpu=="" ? "" : " " + `(${gpu})`}: {" "}
+            {priceErrors.gpu ? "Price unavailable" : `$${gpuPrice.toFixed(2)}`}
+          </p>
+          <p>
+            RAM{ram=="" ? "" : " " + `(${ram})`}: {" "}
+            {priceErrors.ram ? "Price unavailable" : `$${ramPrice.toFixed(2)}`}
+          </p>
+          <p>
+            Motherboard{motherboard=="" ? "" : " " + `(${motherboard})`}: {" "}
+            {priceErrors.motherboard ? "Price unavailable" : `$${motherboardPrice.toFixed(2)}`}
+          </p>
+          <p>
+            Storage{storage=="" ? "" : " " + `(${storage})`}: {" "}
+            {priceErrors.storage ? "Price unavailable" : `$${storagePrice.toFixed(2)}`}
+          </p>
+          <p>
+            PSU{psu=="" ? "" : " " + `(${psu})`}: {" "}
+            {priceErrors.psu ? "Price unavailable" : `$${psuPrice.toFixed(2)}`}
+          </p>
+          <p>
+            Cooler{cooler=="" ? "" : " " + `(${cooler})`}: {" "}
+            {priceErrors.cooler ? "Price unavailable" : `$${coolerPrice.toFixed(2)}`}
+          </p>
   
           <h2>Total: ${total.toFixed(2)}</h2> 
         </div>
