@@ -6,10 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "dotenv": "^17.2.3",
     "next": "^16.2.4",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -20,9 +24,10 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "prisma": "^6.19.3",
-    "ts-node": "^10.9.2"
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts"
   }
 }

@@ -11,7 +11,7 @@ const prisma = new PrismaClient(); // turns engine on
 // Define what a CPU object looks like in JSON data
 interface CpuJson {
     name: string;
-    price: number;
+    price: number | null;
     microarchitecture: string;
     core_count: number;
     tdp: number;
@@ -20,7 +20,7 @@ interface CpuJson {
 // Define Motherboard in JSON data
 interface MotherboardJson {
     name: string;
-    price: number;
+    price: number | null;
     socket: string;
     form_factor: string;
     memory_slots: number;
@@ -28,14 +28,14 @@ interface MotherboardJson {
 
 interface GpuJson {
     name: string;
-    price: number;
+    price: number | null;
     chipset: string;
     memory: number;
 }
 
 interface PsuJson {
     name: string;
-    price: number;
+    price: number | null;
     type: string;
     efficiency: string;
     modular: string;
@@ -44,14 +44,14 @@ interface PsuJson {
 
 interface RamJson {
     name: string;
-    price: number;
+    price: number | null;
     speed: number | number[];
     modules: [number, number];
 }
 
 interface StorageJson {
     name: string;
-    price: number;
+    price: number | null;
     type: string | number;
     capacity: number;
     interface: string;
@@ -59,7 +59,7 @@ interface StorageJson {
 
 interface CoolerJson {
     name: string;
-    price: number;
+    price: number | null;
     rpm: number | number[];
     noise_level: number | number[];
 }
@@ -148,6 +148,7 @@ async function main() {
 
     // --- CPUS ---
     
+    /*
     console.log("Processing CPUs...");
     const cpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cpus.json'), 'utf8')) as CpuJson[];
 
@@ -173,9 +174,11 @@ async function main() {
             }
         });
     }) 
+    */
 
     // --- MOTHERBOARDS ---
     
+    /*
     console.log("Processing Motherboards...");
     const moboData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/motherboard.json'), 'utf8')) as MotherboardJson[];
 
@@ -198,10 +201,11 @@ async function main() {
             }
         })
     })
-
+    */
 
     // -- GPUS --
 
+    /*
     console.log("Processing GPUs...");
     const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8')) as GpuJson[];
     
@@ -221,9 +225,11 @@ async function main() {
             }
         })
     })
+    */
 
     // --- PSUS ---
     
+    /*
     console.log("Processing PSUs...");
     const psuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/psu.json'), 'utf8')) as PsuJson[];
 
@@ -245,8 +251,12 @@ async function main() {
             }
         });
     })
+    */
+
     
     // --- RAM ---
+
+    /*
     console.log("Processing RAM...");
     const ramData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/ram.json'), 'utf8')) as RamJson[] ;
 
@@ -282,10 +292,13 @@ async function main() {
                 }
             }
         });
-    })    
+    })
+    */
+    
 
     // --- STORAGE ---
     
+    /*
     console.log("Processing Storage...");
     const storageData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/storage.json'), 'utf8')) as StorageJson[];
 
@@ -313,6 +326,7 @@ async function main() {
             }
         });
     })
+    */
 
     // --- COOLER ---
     
