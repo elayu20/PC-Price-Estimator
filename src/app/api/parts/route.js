@@ -19,7 +19,7 @@ export async function GET() {
             }
         });
         
-        // Set up an empty object that looks exactly like old prices.json
+        // Group parts by category: { cpu: { "Name": { specs } }, gpu: {...}, ... }
         const formattedData = {
             cpu: {},
             gpu: {},
@@ -41,9 +41,8 @@ export async function GET() {
                 // Grab the one that isn't null
                 const details = part.cpuDetails || part.gpuDetails || part.motherboardDetails || part.ramDetails || part.storageDetails || part.psuDetails || part.coolerDetails || {};
 
-                // Send an object with both price and specs
+                // Prices come from eBay via /api/price, so only specs are sent here
                 formattedData[categoryKey][part.name] = {
-                    price: part.basePrice || 0,
                     specs: details
                 };
             }
@@ -53,7 +52,7 @@ export async function GET() {
         return NextResponse.json(formattedData);
     }
      catch (error) {
-        console.error("Failed to fetch partts from database:", error);
+        console.error("Failed to fetch parts from database:", error);
         return NextResponse.json({ error: "Failed to load parts"}, {status: 500});
      }
 }

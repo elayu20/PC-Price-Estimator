@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { searchEbay } from "../../../../utils/ebay";
 
-// creates an actual API endpoint at http://localhost:3000/api/test
+// GET /api/price?part=NAME -> { price_cad } averaged from live eBay listings
 export async function GET(request) {
     // Grab the requested part from the URL
     const { searchParams } = new URL(request.url);

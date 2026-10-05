@@ -5,7 +5,6 @@ export function saveBuild(build) {
     const savedBuild = JSON.stringify(build);
     // Save it under STORAGE_KEY in user's browser
     localStorage.setItem(STORAGE_KEY, savedBuild);
-    console.log("Saved build:", build)
 }
 
 // Returns an object or null
@@ -20,9 +19,7 @@ export function loadBuild() {
 
     // Convert JSON string back into object
     try {
-        const loadedBuild = JSON.parse(saved);
-        console.log("Loaded build:", loadedBuild);
-        return loadedBuild;
+        return JSON.parse(saved);
     } catch (err) {
         console.error("Saved build was corrupted, clearing it.", err);
         localStorage.removeItem(STORAGE_KEY);
