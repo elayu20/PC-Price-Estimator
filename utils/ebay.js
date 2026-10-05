@@ -1,4 +1,12 @@
+// Cached app token, reused until shortly before it expires (eBay tokens last ~2 hours)
+let cachedToken = null;
+let cachedTokenExpiresAt = 0;
+
 export async function getEbayToken() {
+    if (cachedToken && Date.now() < cachedTokenExpiresAt) {
+        return cachedToken;
+    }
+
     const clientID = process.env.EBAY_CLIENT_ID;
     const clientSecret = process.env.EBAY_CLIENT_SECRET;
 
@@ -19,22 +27,32 @@ export async function getEbayToken() {
             }),
         });
 
+        if (!response.ok) {
+            console.error(`eBay token request failed with status ${response.status}`);
+            return null;
+        }
+
         const data = await response.json();
 
-        return data.access_token; // This is the "wristband"
+        // Refresh a minute early so a token never expires mid-request
+        cachedToken = data.access_token;
+        cachedTokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
+
+        return cachedToken;
     } catch (error) {
         console.error("Error getting eBay token:", error);
         return null;
     }
 }
 
+// Returns eBay's search results, or null if eBay couldn't be reached or returned an error
 export async function searchEbay(keyword) {
     const token = await getEbayToken();
     if (!token) return null;
 
     // Format the eBay Search URL
-    // We use encodedURIComponent to turn spaces into %20 (e.ge, RTX 4090 -> RTX%204090)
-    // limit=3 tells eBay we only want the top 20 results to keep the data small but accurate to account for inconsistent listings
+    // We use encodeURIComponent to turn spaces into %20 (e.g. RTX 4090 -> RTX%204090)
+    // limit=20 asks for the top 20 results to keep the data small but smooth out inconsistent listings
     const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(keyword)}&limit=20`;
 
     try {
@@ -47,8 +65,14 @@ export async function searchEbay(keyword) {
             }
         });
 
-        const data = await response.json();
-        return data;
+        if (!response.ok) {
+            // A rejected token shouldn't be reused on the next request
+            if (response.status === 401) cachedToken = null;
+            console.error(`eBay search failed for "${keyword}" with status ${response.status}`);
+            return null;
+        }
+
+        return await response.json();
     } catch (error) {
         console.error("Search Error:", error);
         return null;

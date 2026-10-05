@@ -1,37 +1,34 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 
 /*
     PartSelect: A custom Autocomplete Combobox component
     Replaces the standard <select> with a searchable text input + floating list
 */
 
-export default function PartSelect({ label, value, setValue, options }) {
-    // 1) Unified State
-    // inputValue tracks exactly what is typed in the box
-    // We initialize it with 'value' in case a saved build is loaded
-    const [inputValue, setInputValue] = useState(value || ""); 
+export default function PartSelect({ label, value, onChange, options }) {
+    // 1) State
+    // query is what the user is typing, or null when they aren't searching.
+    // While it's null the box just shows the selected part (value)
+    const [query, setQuery] = useState(null);
+    const inputValue = query ?? value ?? "";
 
     // isOpen tracks whether the custom dropdown list is visible
     const [isOpen, setIsOpen] = useState(false);
 
-    useEffect(() => {
-        // If the parent chages the value (e.g., Load or Reset), update our local input box
-        setInputValue(value || "");
-    }, [value]);
-
-    // If options isn't loaded yet, show a disabled input
-    if (!options) {
-        return (
-            <div style={{ marginBottom: 16 }}>
-                <input disabled placeholder={`Loading ${label} data...`} style={{ width: "100%", padding: "8px" }} />
-            </div>
-        );
+    // If the parent picks a part (e.g. Load), stop showing any half-typed search.
+    // Done during render instead of in an effect so there's no extra render pass
+    const [prevValue, setPrevValue] = useState(value);
+    if (value !== prevValue) {
+        setPrevValue(value);
+        if (value) setQuery(null);
     }
 
     // 2) Filter the data based on the text input
     const filteredEntries = useMemo ( () => {
+        if (!options) return [];
+
         const q = inputValue.trim().toLowerCase();
 
         // If the box is empty, show everything
@@ -45,12 +42,21 @@ export default function PartSelect({ label, value, setValue, options }) {
         );
     }, [options, inputValue]);
 
+    // If options isn't loaded yet, show a disabled input
+    if (!options) {
+        return (
+            <div style={{ marginBottom: 16 }}>
+                <input disabled placeholder={`Loading ${label} data...`} style={{ width: "100%", padding: "8px" }} />
+            </div>
+        );
+    }
+
     const limitedEntries = filteredEntries.slice(0, 50);
 
     // 3) Handle user selection
     const handleSelect = (name) => {
-        setValue(name); // Update the actual build state in the parent
-        setInputValue(name); // Lock the input text to the exact part name
+        onChange(name); // Update the actual build state in the parent
+        setQuery(null); // Stop searching, the box now shows the selected name
         setIsOpen(false); // Close the dropdown
     }
 
@@ -65,8 +71,9 @@ export default function PartSelect({ label, value, setValue, options }) {
 
                 // When the user types:
                 onChange={ (e) => {
-                    setInputValue(e.target.value);
-                    setValue(""); // Clear the parent's selected value because they are searching for a new one
+                    setQuery(e.target.value);
+                    // Clear the parent's selected value because they are searching for a new one
+                    if (value) onChange("");
                     setIsOpen(true); // Ensure dropdown opens when typing
                 }}
 

@@ -135,11 +135,11 @@ export default function Home() {
       const data = await response.json();
       if (isStale()) return;
 
-      // price_cad > 0 means we got a real average from eBay listings
-      // price_cad === 0 means the API found no usable listings - treat that
+      // priceCad > 0 means we got a real average from eBay listings
+      // priceCad === 0 means the API found no usable listings - treat that
       // as a failure to fetch a price, not a real $0 price
-      if (data.price_cad && data.price_cad > 0) {
-        setLivePrices(prev => ({ ...prev, [partType]: data.price_cad }));
+      if (data.priceCad && data.priceCad > 0) {
+        setLivePrices(prev => ({ ...prev, [partType]: data.priceCad }));
       } else {
         setPriceErrors(prev => ({ ...prev, [partType]: true }));
       }
@@ -166,7 +166,7 @@ export default function Home() {
             <PartSelect
               label={label}
               value={build[key]}
-              setValue={(val) => selectPart(key, val)}
+              onChange={(val) => selectPart(key, val)}
               options={key === "ram" ? filteredRamOptions : catalog[key]}
             />
           );
