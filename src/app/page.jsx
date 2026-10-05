@@ -1,9 +1,25 @@
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import PartSelect from "../../components/PartSelect";
-import { saveBuild, loadBuild, clearBuild } from "../../utils/buildStorage";
+import { saveBuild, loadBuild } from "../../utils/buildStorage";
 import BuildControls from "../../components/BuildControls";
-import { match } from "node:assert";
+
+// Every part category, in display order. `key` matches the /api/parts catalog
+// keys and the saved-build keys
+const CATEGORIES = [
+  { key: "cpu", label: "CPU" },
+  { key: "gpu", label: "GPU" },
+  { key: "ram", label: "RAM" },
+  { key: "motherboard", label: "Motherboard" },
+  { key: "storage", label: "Storage" },
+  { key: "psu", label: "PSU" },
+  { key: "cooler", label: "Cooler" },
+];
+
+// Builds an object with one entry per category, all set to `value`
+function perCategory(value) {
+  return Object.fromEntries(CATEGORIES.map(({ key }) => [key, value]));
+}
 
 export default function Home() {
   // For ram options dropdown
@@ -11,62 +27,43 @@ export default function Home() {
   const [ramGen, setRamGen] = useState("");
   const [ramCap, setRamCap] = useState("");
 
-  const [cpu, setCpu] = useState("");
-  const [gpu, setGpu] = useState("");
-  const [ram, setRam] = useState("");
-  const [storage, setStorage] = useState("");
-  const [motherboard, setMotherboard] = useState("");
-  const [psu, setPsu] = useState("");
-  const [cooler, setCooler] = useState("");
-  const [prices, setPrices] = useState(null);
-  const [liveEbayTotal, setLiveEbayTotal] = useState(null);
-  const [isFetchingLive, setIsFetchingLive] = useState(false);
-  const [individualLivePrices, setIndividualLivePrices] = useState({
-    cpu: null,
-    gpu: null,
-    ram: null,
-    motherboard: null,
-    storage: null,
-    psu: null,
-    cooler: null,
-  });
+  // Selected part name per category ("" = nothing selected)
+  const [build, setBuild] = useState(() => perCategory(""));
+  // Part names and specs from the DB, grouped by category
+  const [catalog, setCatalog] = useState(null);
+  // Live eBay price per category (null = nothing selected, still loading, or unavailable)
+  const [livePrices, setLivePrices] = useState(() => perCategory(null));
 
-    // Tracks, per part, whether we tried to fetch a live price and failed
-    // (either the API call errored, or eBay had no usable listings)
-    // This is what lets us show "Price unavailable" instead of silently
-    // showing a made-up number
-    const [priceErrors, setPriceErrors] = useState({
-        cpu: false,
-        gpu: false,
-        ram: false,
-        motherboard: false,
-        storage: false,
-        psu: false,
-        cooler: false,
-    });
+  // Tracks, per part, whether we tried to fetch a live price and failed
+  // (either the API call errored, or eBay had no usable listings)
+  // This is what lets us show "Price unavailable" instead of silently
+  // showing a made-up number
+  const [priceErrors, setPriceErrors] = useState(() => perCategory(false));
 
-  // Fetch prices from db
+  // The part name most recently requested per category. A price response is
+  // only applied if it's still for this part, so a slow response for an old
+  // pick can't overwrite the price of the current one
+  const latestPriceRequest = useRef({});
+
+  // Fetch the part catalog from the DB
   useEffect(() => {
     // This runs once when the page first loads
     fetch("/api/parts")
       .then((res) => res.json())
       .then((data) => {
-        console.log("Loaded prices:", data);
-        setPrices(data);
+        setCatalog(data);
       })
       .catch((err) => {
-        console.error("Failed to load prices.json", err);
+        console.error("Failed to load parts catalog", err);
       })
   }, [])
 
   // Filter logic for RAM
   const filteredRamOptions = useMemo(() => {
-    if (!prices?.ram) return {};
-
-    console.log("Sample RAM spec:", Object.values(prices.ram)[0]?.specs);
+    if (!catalog?.ram) return {};
 
     return Object.fromEntries(
-      Object.entries(prices.ram).filter(([name, data]) => {
+      Object.entries(catalog.ram).filter(([name, data]) => {
         const specs = data.specs;
 
         // If a filter is selected, the part MUST match it
@@ -78,54 +75,25 @@ export default function Home() {
         return matchesSticks && matchesGen && matchesCap;
       })
     );
-  }, [prices?.ram, ramSticks, ramGen, ramCap]);
+  }, [catalog?.ram, ramSticks, ramGen, ramCap]);
 
-  // Helper to get eBay price first, then fallabck to a price of 0
-    // Let UI flag it as unavailable
-  const getBestPrice = (category, partName, livePrice) => {
-    if (!partName) return 0; // Nothing selected
-    return livePrice && livePrice > 0 ? livePrice: 0; 
+  // livePrices only ever holds a real (> 0) eBay price or null, so missing counts as 0
+  const total = CATEGORIES.reduce((sum, { key }) => sum + (livePrices[key] ?? 0), 0);
+
+  // Parts left out of the total because eBay had no price for them
+  const unpricedCount = Object.values(priceErrors).filter(Boolean).length;
+
+  // Selects a part in one category and fetches its live price
+  function selectPart(partType, partName) {
+    setBuild(prev => ({ ...prev, [partType]: partName }));
+    fetchLivePrice(partType, partName);
   }
 
-  const cpuPrice = getBestPrice("cpu", cpu, individualLivePrices.cpu);
-  const gpuPrice = getBestPrice("gpu", gpu, individualLivePrices.gpu);
-  const ramPrice = getBestPrice("ram", ram, individualLivePrices.ram);
-  const storagePrice = getBestPrice("storage", storage, individualLivePrices.storage);
-  const motherboardPrice = getBestPrice("motherboard", motherboard, individualLivePrices.motherboard);
-  const psuPrice = getBestPrice("psu", psu, individualLivePrices.psu);
-  const coolerPrice = getBestPrice("cooler", cooler, individualLivePrices.cooler);
-
-  const total = cpuPrice + gpuPrice + ramPrice + storagePrice + motherboardPrice + psuPrice + coolerPrice; 
-
-  const build = {
-    cpu,
-    gpu,
-    ram,
-    storage,
-    motherboard,
-    psu,
-    cooler,
-  }
-
-  // Apply build into state (one state at a time)
+  // Apply a saved (or empty) build to state
   function applyBuildToState(b) {
-    // Set the names
-    setCpu(b.cpu ?? "");
-    setGpu(b.gpu ?? "");
-    setRam(b.ram ?? "");
-    setStorage(b.storage ?? "");
-    setMotherboard(b.motherboard ?? "");
-    setPsu(b.psu ?? "");
-    setCooler(b.cooler ?? ""); 
-
-    // Immediately fetch live prices for the loaded parts
-    if (b.cpu) fetchIndividualPrice("cpu", b.cpu);
-    if (b.gpu) fetchIndividualPrice("gpu", b.gpu);
-    if (b.ram) fetchIndividualPrice("ram", b.ram);
-    if (b.storage) fetchIndividualPrice("storage", b.storage);
-    if (b.motherboard) fetchIndividualPrice("motherboard", b.motherboard);
-    if (b.psu) fetchIndividualPrice("psu", b.psu);
-    if (b.cooler) fetchIndividualPrice("cooler", b.cooler);
+    // Empty categories just get cleared, so no part or price from the
+    // previous build is left behind
+    CATEGORIES.forEach(({ key }) => selectPart(key, b[key] ?? ""));
   }
 
   function handleSave() {
@@ -141,236 +109,113 @@ export default function Home() {
   }
 
   function handleReset() {
-    // Reset UI selections
-    applyBuildToState({}); // all fields become "" because of ?? ""
-
-    // Reset the live price memory bank to all nulls
-    setIndividualLivePrices({
-      cpu: null,
-      gpu: null,
-      ram: null,
-      motherboard: null,
-      storage: null,
-      psu: null,
-      cooler: null,
-    });
-
-    setPriceErrors({
-        cpu: false,
-        gpu: false,
-        ram: false,
-        motherboard: false,
-        storage: false,
-        psu: false,
-        cooler: false,
-    });
-
-    // Reset the live total
-    setLiveEbayTotal(null);
+    // All fields become "", which also clears their prices and errors
+    applyBuildToState({});
   }
 
-  // Fetches the live price for an array of parts one by one
-  async function handleGetLiveTotal() {
-    setIsFetchingLive(true);
-    setLiveEbayTotal(null); // clear the old total
+  // Fetches the live eBay price for one part and saves it to state
+  async function fetchLivePrice(partType, partName) {
+    latestPriceRequest.current[partType] = partName;
 
-    // Make a list of whatever parts are currently selected
-    const selectedParts = [cpu, gpu, ram, storage, motherboard, psu, cooler].filter(part => part !== "");
+    // Clear the old price right away so it isn't shown next to the new part
+    setLivePrices(prev => ({ ...prev, [partType]: null }));
+    setPriceErrors(prev => ({ ...prev, [partType]: false }));
 
-    let newLiveTotal = 0;
+    // Nothing selected (e.g. the user is typing a new search), nothing to fetch
+    if (!partName) return;
 
-    // Loop through each selected part and ask backend for the eBay price
-    for (const part of selectedParts) {
-      try {
-        console.log(`Asking API for: ${part}`); // DIAGNOSTIC LOG
-
-        // Use encodeURIComponent so spaces become %20 (URL safe)
-        const response = await fetch(`api/test?part=${encodeURIComponent(part)}`);
-        if (!response.ok) {
-          console.error(`Backend API failed for ${part} with status ${response.status}`);
-          continue;
-        }
-        const data = await response.json();
-
-        // Add the live pricing to running total
-        if (data.price_cad) {
-          newLiveTotal += data.price_cad;
-        }
-      } catch (error) {
-        console.error(`Failed to fetch live price for ${part}`, error);
-      }
-    }
-
-    setLiveEbayTotal(newLiveTotal);
-    setIsFetchingLive(false);
-  }
-
-  // Fetches the price for one specific part and saves it to state
-  async function fetchIndividualPrice(partType, partName) {
-    // If the user selected "Choose a CPU..." (empty string), reset the price and error
-    if (!partName) {
-      setIndividualLivePrices(prev => ({ ...prev, [partType]: null}));
-      setPriceErrors(prev => ({ ...prev, [partType]: false}));
-      return;
-    }
+    // True if the user has picked something else since this request started
+    const isStale = () => latestPriceRequest.current[partType] !== partName;
 
     try {
-      console.log(`Fetching individual price for ${partName}...`);
-      const response = await fetch(`/api/test?part=${encodeURIComponent(partName)}`);
+      const response = await fetch(`/api/price?part=${encodeURIComponent(partName)}`);
 
       if (!response.ok) throw new Error("API failed");
 
       const data = await response.json();
+      if (isStale()) return;
 
       // price_cad > 0 means we got a real average from eBay listings
-      // price_cad === 0 means the API found no usable listings - treat that 
+      // price_cad === 0 means the API found no usable listings - treat that
       // as a failure to fetch a price, not a real $0 price
       if (data.price_cad && data.price_cad > 0) {
-        setIndividualLivePrices(prev => ({ ...prev, [partType]: data.price_cad }));
-        setPriceErrors(prev => ({ ...prev, [partType]: false }));
+        setLivePrices(prev => ({ ...prev, [partType]: data.price_cad }));
       } else {
-          setIndividualLivePrices(prev => ({ ...prev, [partType]: null }));
-          setPriceErrors(prev => ({ ...prev, [partType]: true }));
+        setPriceErrors(prev => ({ ...prev, [partType]: true }));
       }
     } catch (error) {
-        console.error(`Failed to fetch individual price for ${partName}`, error);
-        // Network/API failure - also mark as unavailable rather than leaving
+        if (isStale()) return;
+        console.error(`Failed to fetch live price for ${partName}`, error);
+        // Network/API failure - mark as unavailable rather than leaving
         // a stale or misleading price on screen
-        setIndividualLivePrices(prev => ({ ...prev, [partType]: null }));
         setPriceErrors(prev => ({ ...prev, [partType]: true }));
     }
   }
 
-  // If prices haven't loaded yet,t show something instead of a blank page
-  if (!prices) {
-    return <p>Loading prices...</p>
+  // If the catalog hasn't loaded yet, show something instead of a blank page
+  if (!catalog) {
+    return <p>Loading parts...</p>
   }
-  
-  if (prices) {
-    return (
+
+  return (
       <main>
         <h1>PC Price Estimator</h1>
 
-        {/* --- CPU --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="CPU" 
-            value={cpu} 
-            setValue={(val) => { setCpu(val); fetchIndividualPrice("cpu", val); }} 
-            options={prices?.cpu}
-          /> 
-        </div>
+        {CATEGORIES.map(({ key, label }) => {
+          const select = (
+            <PartSelect
+              label={label}
+              value={build[key]}
+              setValue={(val) => selectPart(key, val)}
+              options={key === "ram" ? filteredRamOptions : catalog[key]}
+            />
+          );
 
-        {/* --- GPU --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="GPU" 
-            value={gpu} 
-            setValue={(val) => { setGpu(val); fetchIndividualPrice("gpu", val); }} 
-            options={prices?.gpu}
-          /> 
-        </div>
+          if (key !== "ram") {
+            return <div key={key} style={{ marginBottom: "12px" }}>{select}</div>;
+          }
 
-        {/* --- RAM WITH MINI FILTERS --- */}
-        <div style={{ marginBottom: "12px", border: "1px solid #ddd", padding: "12px", borderRadius: "8px" }}>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
-            <select value={ramSticks} onChange={(e) => setRamSticks(e.target.value)} style={{ padding: "6px", flex: 1 }}>
-              <option value="">Any Sticks</option>
-              {[1, 2, 4, 8].map(num => <option key={num} value={num}>{num} Sticks</option>)}
-            </select>
+          // RAM gets mini filters above its dropdown
+          return (
+            <div key={key} style={{ marginBottom: "12px", border: "1px solid #ddd", padding: "12px", borderRadius: "8px" }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
+                <select value={ramSticks} onChange={(e) => setRamSticks(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+                  <option value="">Any Sticks</option>
+                  {[1, 2, 4, 8].map(num => <option key={num} value={num}>{num} Sticks</option>)}
+                </select>
 
-            <select value={ramGen} onChange={(e) => setRamGen(e.target.value)} style={{ padding: "6px", flex: 1 }}>
-              <option value="">Any Gen</option>
-              {["DDR3", "DDR4", "DDR5"].map(gen => <option key={gen} value={gen}>{gen}</option>)}
-            </select>
+                <select value={ramGen} onChange={(e) => setRamGen(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+                  <option value="">Any Gen</option>
+                  {["DDR3", "DDR4", "DDR5"].map(gen => <option key={gen} value={gen}>{gen}</option>)}
+                </select>
 
-            <select value={ramCap} onChange={(e) => setRamCap(e.target.value)} style={{ padding: "6px", flex: 1 }}>
-              <option value="">Any Capacity</option>
-              {[8, 16, 32, 64, 128].map(cap => <option key={cap} value={cap}>{cap}GB Total</option>)}
-            </select>
-          </div>
+                <select value={ramCap} onChange={(e) => setRamCap(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+                  <option value="">Any Capacity</option>
+                  {[8, 16, 32, 64, 128].map(cap => <option key={cap} value={cap}>{cap}GB Total</option>)}
+                </select>
+              </div>
 
-          <PartSelect label="RAM" value={ram} setValue={(val) => { setRam(val); fetchIndividualPrice("ram", val); }} options={filteredRamOptions} /> 
-        </div>
-
-        {/* --- MOTHERBOARD --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="Motherboard" 
-            value={motherboard} 
-            setValue={(val) => { setMotherboard(val); fetchIndividualPrice("motherboard", val); }} 
-            options={prices?.motherboard}
-          /> 
-        </div>
-
-        {/* --- STORAGE --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="Storage" 
-            value={storage} 
-            setValue={(val) => { setStorage(val); fetchIndividualPrice("storage", val); }} 
-            options={prices?.storage}
-          /> 
-        </div>
-
-        {/* --- PSU --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="PSU" 
-            value={psu} 
-            setValue={(val) => { setPsu(val); fetchIndividualPrice("psu", val); }} 
-            options={prices?.psu}
-          /> 
-        </div>
-
-        {/* --- COOLER --- */}
-        <div style={{ marginBottom: "12px" }}>
-          <PartSelect 
-            label="Cooler" 
-            value={cooler} 
-            setValue={(val) => { setCooler(val); fetchIndividualPrice("cooler", val); }} 
-            options={prices?.cooler}
-          /> 
-        </div>
+              {select}
+            </div>
+          );
+        })}
 
         <div style={{ marginTop: "24px", padding: "16px", border: "1px solid #ccc" }}>
           <h3>Build Summary</h3>
-          <p>
-            CPU{cpu=="" ? "" : " " + `(${cpu})`}: {" "}
-            {priceErrors.cpu
-                ? "Price unavailable"
-                : `$${cpuPrice.toFixed(2)}`}
-          </p>
-          <p>
-            GPU{gpu=="" ? "" : " " + `(${gpu})`}: {" "}
-            {priceErrors.gpu ? "Price unavailable" : `$${gpuPrice.toFixed(2)}`}
-          </p>
-          <p>
-            RAM{ram=="" ? "" : " " + `(${ram})`}: {" "}
-            {priceErrors.ram ? "Price unavailable" : `$${ramPrice.toFixed(2)}`}
-          </p>
-          <p>
-            Motherboard{motherboard=="" ? "" : " " + `(${motherboard})`}: {" "}
-            {priceErrors.motherboard ? "Price unavailable" : `$${motherboardPrice.toFixed(2)}`}
-          </p>
-          <p>
-            Storage{storage=="" ? "" : " " + `(${storage})`}: {" "}
-            {priceErrors.storage ? "Price unavailable" : `$${storagePrice.toFixed(2)}`}
-          </p>
-          <p>
-            PSU{psu=="" ? "" : " " + `(${psu})`}: {" "}
-            {priceErrors.psu ? "Price unavailable" : `$${psuPrice.toFixed(2)}`}
-          </p>
-          <p>
-            Cooler{cooler=="" ? "" : " " + `(${cooler})`}: {" "}
-            {priceErrors.cooler ? "Price unavailable" : `$${coolerPrice.toFixed(2)}`}
-          </p>
-  
-          <h2>Total: ${total.toFixed(2)}</h2> 
+          {CATEGORIES.map(({ key, label }) => (
+            <p key={key}>
+              {label}{build[key] ? ` (${build[key]})` : ""}:{" "}
+              {priceErrors[key] ? "Price unavailable" : `$${(livePrices[key] ?? 0).toFixed(2)}`}
+            </p>
+          ))}
+
+          <h2>
+            Total: ${total.toFixed(2)}
+            {unpricedCount > 0 && ` (${unpricedCount} ${unpricedCount === 1 ? "part" : "parts"} unpriced)`}
+          </h2>
         </div>
 
       <BuildControls onSave={handleSave} onLoad={handleLoad} onReset={handleReset} />
       </main>
-    );
-  }
+  );
 }
