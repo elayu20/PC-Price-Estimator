@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useRef } from "react"
 import PartSelect from "../../components/PartSelect";
 import { saveBuild, loadBuild } from "../../utils/buildStorage";
 import BuildControls from "../../components/BuildControls";
+import { checkCompatibility } from "../../utils/compatibility";
 
 // Every part category, in display order. `key` matches the /api/parts catalog
 // keys and the saved-build keys
@@ -76,6 +77,14 @@ export default function Home() {
       })
     );
   }, [catalog?.ram, ramSticks, ramGen, ramCap]);
+
+  // Specs of each selected part (undefined = nothing selected)
+  const selectedSpecs = useMemo(() => Object.fromEntries(
+    CATEGORIES.map(({ key }) => [key, catalog?.[key]?.[build[key]]?.specs])
+  ), [catalog, build]);
+
+  // Conflicts between the selected parts
+  const compatibilityIssues = useMemo(() => checkCompatibility(selectedSpecs), [selectedSpecs]);
 
   // livePrices only ever holds a real (> 0) eBay price or null, so missing counts as 0
   const total = CATEGORIES.reduce((sum, { key }) => sum + (livePrices[key] ?? 0), 0);
@@ -208,6 +217,15 @@ export default function Home() {
               {priceErrors[key] ? "Price unavailable" : `$${(livePrices[key] ?? 0).toFixed(2)}`}
             </p>
           ))}
+
+          {compatibilityIssues.length > 0 && (
+            <div style={{ margin: "12px 0", padding: "12px", border: "1px solid #e0a0a0", borderRadius: "8px", backgroundColor: "#fdf0f0", color: "#a00" }}>
+              <strong>Compatibility issues</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: "20px" }}>
+                {compatibilityIssues.map(({ message }) => <li key={message}>{message}</li>)}
+              </ul>
+            </div>
+          )}
 
           <h2>
             Total: ${total.toFixed(2)}
