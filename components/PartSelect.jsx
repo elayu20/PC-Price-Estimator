@@ -53,7 +53,16 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
         );
     }
 
-    const limitedEntries = filteredEntries.slice(0, 50);
+    // Attach each option's compatibility issues and move compatible options to the
+    // top (sort is stable, so each group keeps its order). Only done while the list
+    // is open, since it checks every matching option, not just the 50 shown
+    const checkedEntries = isOpen
+        ? filteredEntries
+            .map(([name, data]) => [name, data, getIssues ? getIssues(data.specs || {}) : []])
+            .sort((a, b) => (a[2].length > 0) - (b[2].length > 0))
+        : [];
+
+    const limitedEntries = checkedEntries.slice(0, 50);
 
     // 3) Handle user selection
     const handleSelect = (name) => {
@@ -105,7 +114,7 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
                     boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
                 }}>
                     {limitedEntries.length > 0 ? (
-                        limitedEntries.map(([name, data]) => {
+                        limitedEntries.map(([name, data, issues]) => {
                             // Extract specs to build a helpful label
                             const s = data.specs || {};
                             let specLabel = "";
@@ -141,7 +150,6 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
                                 specLabel = `${s.rpm} RPM | ${s.noise_level} dB`;
                             }
 
-                            const issues = getIssues ? getIssues(s) : [];
                             const incompatible = issues.length > 0;
 
                             return (
