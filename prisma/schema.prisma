@@ -51,6 +51,7 @@ model Motherboard {
   socket        String
   formFactor    String
   ramSlots      Int
+  memoryType    String  @default("Unknown") // e.g., "DDR4", "DDR5"; inferred from name/socket
   hasWifi       Boolean @default(false)
 }
 

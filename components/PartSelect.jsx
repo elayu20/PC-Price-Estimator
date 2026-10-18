@@ -120,7 +120,8 @@ export default function PartSelect({ label, value, onChange, options }) {
                             }
                             else if (label === "Motherboard" && s.socket) {
                                 const wifiText = s.hasWifi ? " | WiFi" : "";
-                                specLabel = `${s.socket} | ${s.formFactor} | ${s.ramSlots} RAM Slots${wifiText}`;
+                                const memText = s.memoryType && s.memoryType !== "Unknown" ? ` ${s.memoryType}` : "";
+                                specLabel = `${s.socket} | ${s.formFactor} | ${s.ramSlots}x${memText} RAM Slots${wifiText}`;
                             }
                             else if (label === "Storage" && s.capacityGb) {
                                 let capacityText = s.capacityGb >= 1000
