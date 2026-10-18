@@ -7,7 +7,9 @@ import { useMemo, useState } from "react";
     Replaces the standard <select> with a searchable text input + floating list
 */
 
-export default function PartSelect({ label, value, onChange, options }) {
+// getIssues(specs) returns the compatibility problems an option would cause with
+// the rest of the build. Those options stay clickable but are flagged in red
+export default function PartSelect({ label, value, onChange, options, getIssues }) {
     // 1) State
     // query is what the user is typing, or null when they aren't searching.
     // While it's null the box just shows the selected part (value)
@@ -139,6 +141,9 @@ export default function PartSelect({ label, value, onChange, options }) {
                                 specLabel = `${s.rpm} RPM | ${s.noise_level} dB`;
                             }
 
+                            const issues = getIssues ? getIssues(s) : [];
+                            const incompatible = issues.length > 0;
+
                             return (
                                 <li
                                     key={name}
@@ -148,19 +153,28 @@ export default function PartSelect({ label, value, onChange, options }) {
                                         padding: "10px 8px",
                                         cursor: "pointer",
                                         borderBottom: "1px solid #eee",
+                                        // Red left edge so incompatible options stand out while scrolling
+                                        borderLeft: incompatible ? "4px solid #d33" : "4px solid transparent",
+                                        backgroundColor: incompatible ? "#fdf5f5" : "white",
                                         color: "black",
                                         display: "flex",
                                         flexDirection: "column",
                                         gap: "4px"
                                     }}
                                 >
-                                    <span style={{ fontWeight: "500" }}>{name}</span>
+                                    <span style={{ fontWeight: "500", opacity: incompatible ? 0.6 : 1 }}>{name}</span>
 
                                     {specLabel && (
-                                        <span style={{ color: "#666", fontSize: "0.85em" }}>
+                                        <span style={{ color: "#666", fontSize: "0.85em", opacity: incompatible ? 0.6 : 1 }}>
                                             {specLabel}
                                         </span>
                                     )}
+
+                                    {issues.map((issue) => (
+                                        <span key={issue} style={{ color: "#c00", fontSize: "0.85em" }}>
+                                            ⚠ {issue}
+                                        </span>
+                                    ))}
                                 </li>
                             );
                         })

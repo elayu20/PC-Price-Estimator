@@ -86,6 +86,14 @@ export default function Home() {
   // Conflicts between the selected parts
   const compatibilityIssues = useMemo(() => checkCompatibility(selectedSpecs), [selectedSpecs]);
 
+  // Messages for the conflicts a dropdown option would cause with the rest of
+  // the build if it were picked in category `key`
+  function optionIssues(key, specs) {
+    return checkCompatibility({ ...selectedSpecs, [key]: specs })
+      .filter(({ parts }) => parts.includes(key))
+      .map(({ message }) => message);
+  }
+
   // livePrices only ever holds a real (> 0) eBay price or null, so missing counts as 0
   const total = CATEGORIES.reduce((sum, { key }) => sum + (livePrices[key] ?? 0), 0);
 
@@ -177,6 +185,7 @@ export default function Home() {
               value={build[key]}
               onChange={(val) => selectPart(key, val)}
               options={key === "ram" ? filteredRamOptions : catalog[key]}
+              getIssues={(specs) => optionIssues(key, specs)}
             />
           );
 
