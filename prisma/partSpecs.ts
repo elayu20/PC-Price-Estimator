@@ -144,3 +144,59 @@ export function motherboardMemoryType(socket: string, name: string): string {
     // LGA775 (DDR2 or DDR3) and boards with integrated CPUs vary too much to guess
     return socketMemoryType[base] ?? "Unknown";
 }
+
+// The dataset reuses one name for several variants (e.g. "Corsair Vengeance LPX 16 GB"
+// covers dozens of speed/kit combos), but the app keys parts by name. Within each
+// same-name group, appends the labels that differ, e.g. "Samsung 990 Pro (2TB)".
+// Rows whose labels are identical too can't be told apart by anything the app
+// stores (they differ only in color, latency...), so only the first is kept
+export function uniqueNames<T>(items: T[], baseName: (item: T) => string, labels: (item: T) => string[]): { item: T; name: string }[] {
+    const groups = new Map<string, T[]>();
+    for (const item of items) {
+        const base = baseName(item);
+        groups.set(base, [...(groups.get(base) ?? []), item]);
+    }
+
+    const seen = new Set<string>();
+    const result: { item: T; name: string }[] = [];
+
+    for (const [base, group] of groups) {
+        const groupLabels = group.map(labels);
+        // Label positions whose value isn't the same across the whole group
+        const differing = groupLabels[0]!
+            .map((_, i) => i)
+            .filter(i => new Set(groupLabels.map(l => l[i])).size > 1);
+
+        group.forEach((item, index) => {
+            const suffix = differing.map(i => groupLabels[index]![i]).filter(Boolean).join(", ");
+            const name = suffix ? `${base} (${suffix})` : base;
+            if (seen.has(name)) return;
+            seen.add(name);
+            result.push({ item, name });
+        });
+    }
+    return result;
+}
+
+// "2000" -> "2TB", "500" -> "500GB"
+export function capacityLabel(gb: number): string {
+    return gb >= 1000 ? `${Number((gb / 1000).toFixed(1))}TB` : `${gb}GB`;
+}
+
+// eBay search keyword: the parts of the name that sellers put in titles.
+// Parenthesized notes like "(2023)" rarely appear in titles, so they're dropped
+export function searchQuery(...parts: string[]): string {
+    return parts.join(" ").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Adds `extra` to a search keyword unless the name already contains it
+// (case-insensitive), e.g. "Corsair RM850x" doesn't need "850W"
+export function withExtra(name: string, extra: string, contains = extra): string {
+    return name.toLowerCase().includes(contains.toLowerCase()) ? name : `${name} ${extra}`;
+}
+
+// GPU chipset as sellers write it: "GeForce RTX 3060 12GB" -> "RTX 3060".
+// The memory size is left out because titles write it as "12GB", "12G" or "12 GB"
+export function gpuModel(chipset: string): string {
+    return chipset.replace(/^(GeForce|Radeon|Intel Arc|Arc)\s+/i, "").replace(/\s+\d+\s?GB$/i, "");
+}

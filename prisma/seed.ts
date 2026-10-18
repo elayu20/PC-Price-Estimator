@@ -2,7 +2,7 @@
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
-import { cpuSocket, motherboardSocket, motherboardMemoryType } from './partSpecs.ts';
+import { cpuSocket, motherboardSocket, motherboardMemoryType, uniqueNames, capacityLabel, searchQuery, withExtra, gpuModel } from './partSpecs.ts';
 
 // INITIALIZATION
 const prisma = new PrismaClient(); // turns engine on
@@ -61,8 +61,13 @@ interface StorageJson {
 interface CoolerJson {
     name: string;
     price: number | null;
-    rpm: number | number[];
-    noise_level: number | number[];
+    rpm: number | number[] | null;
+    noise_level: number | number[] | null;
+    size: number | null; // radiator size in mm, null for air coolers
+}
+
+function readJson<T>(file: string): T[] {
+    return JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', file), 'utf8')) as T[];
 }
 
 // Batch helper function
@@ -75,11 +80,23 @@ async function seedInBatches<T>(dataArray: T[], batchSize: number, createFunctio
 }
 
 // Deletes every part in a category (spec rows first, since they reference the part)
-// so re-seeding it replaces the old rows instead of duplicating them
+// so re-seeding it replaces the old rows instead of duplicating them.
+// Cached prices are deleted along with their part (onDelete: Cascade)
 async function clearCategory(category: string, deleteSpecs: () => Promise<unknown>) {
     await deleteSpecs();
     const { count } = await prisma.part.deleteMany({ where: { category } });
     console.log(`...cleared ${count} existing ${category} parts`);
+}
+
+// Fields shared by every part row. `name` must be unique within its category
+function partFields(name: string, item: { name: string; price: number | null }, category: string, query: string) {
+    return {
+        name,
+        brand: item.name.split(" ")[0] || "Unknown",
+        category,
+        basePrice: item.price,
+        searchQuery: query,
+    };
 }
 
 // MAIN FUNC
@@ -88,22 +105,20 @@ async function main() {
     const BATCH_SIZE = 200;
 
     // --- CPUS ---
-    
+
     console.log("Processing CPUs...");
-    const cpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cpus.json'), 'utf8')) as CpuJson[];
+    // Same-name CPUs in the dataset are exact duplicates, so no labels are needed
+    const cpuData = uniqueNames(readJson<CpuJson>('cpus.json'), item => item.name, () => []);
     await clearCategory("CPU", () => prisma.cpu.deleteMany());
 
-    await seedInBatches(cpuData, BATCH_SIZE, (item) => {
+    await seedInBatches(cpuData, BATCH_SIZE, ({ item, name }) => {
         // Socket from the architecture, refined by name (HEDT, Threadripper, FX...)
         // "Unknown" if the architecture isn't recognized
         const detectedSocket = cpuSocket(item.name, item.microarchitecture);
 
         return prisma.part.create({
             data: {
-                name: item.name,
-                brand: item.name.split(" ")[0] || "Unknown", // Grabs AMD or Intel from the start of the name
-                category: "CPU",
-                basePrice: item.price,
+                ...partFields(name, item, "CPU", searchQuery(item.name)),
                 cpuDetails: {
                     create: {
                         socket: detectedSocket,
@@ -119,17 +134,15 @@ async function main() {
     // --- MOTHERBOARDS ---
 
     console.log("Processing Motherboards...");
-    const moboData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/motherboard.json'), 'utf8')) as MotherboardJson[];
+    // A couple of names (e.g. "EVGA Classified") cover boards for different sockets
+    const moboData = uniqueNames(readJson<MotherboardJson>('motherboard.json'), item => item.name, item => [item.socket]);
     await clearCategory("Motherboard", () => prisma.motherboard.deleteMany());
 
-    await seedInBatches(moboData, BATCH_SIZE, (item) => {
+    await seedInBatches(moboData, BATCH_SIZE, ({ item, name }) => {
 
         return prisma.part.create({
             data: {
-                name: item.name,
-                brand: item.name.split(" ")[0] || "Unknown",
-                category: "Motherboard",
-                basePrice: item.price,
+                ...partFields(name, item, "Motherboard", searchQuery(item.name)),
                 motherboardDetails: {
                     create: {
                         socket: motherboardSocket(item.socket, item.name),
@@ -145,17 +158,20 @@ async function main() {
 
     // -- GPUS --
 
-    /*
     console.log("Processing GPUs...");
-    const gpuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/gpus.json'), 'utf8')) as GpuJson[];
-    
-    await seedInBatches(gpuData, BATCH_SIZE, (item) => {
+    // Board partner names like "Gigabyte GAMING OC" are reused across chipsets, so the
+    // chipset is part of the name unless the name already has it ("MSI GeForce RTX 3060 Ventus")
+    const gpuData = uniqueNames(
+        readJson<GpuJson>('gpus.json'),
+        item => withExtra(item.name, item.chipset, gpuModel(item.chipset)),
+        item => [`${item.memory}GB`],
+    );
+    await clearCategory("GPU", () => prisma.gpu.deleteMany());
+
+    await seedInBatches(gpuData, BATCH_SIZE, ({ item, name }) => {
         return prisma.part.create({
             data: {
-                name: item.name + " " + item.chipset,
-                brand: item.name.split(" ")[0] || "Unknown",
-                category: "GPU",
-                basePrice: item.price,
+                ...partFields(name, item, "GPU", searchQuery(withExtra(item.name, gpuModel(item.chipset)))),
                 gpuDetails: {
                     create: {
                         chipset: item.chipset,
@@ -165,21 +181,21 @@ async function main() {
             }
         })
     })
-    */
 
     // --- PSUS ---
-    
-    /*
-    console.log("Processing PSUs...");
-    const psuData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/psu.json'), 'utf8')) as PsuJson[];
 
-    await seedInBatches(psuData, BATCH_SIZE, (item) => {
+    console.log("Processing PSUs...");
+    const psuData = uniqueNames(
+        readJson<PsuJson>('psu.json'),
+        item => item.name,
+        item => [`${item.wattage}W`, item.efficiency || "", item.modular ? `${item.modular} modular` : "non-modular", item.type],
+    );
+    await clearCategory("PSU", () => prisma.psu.deleteMany());
+
+    await seedInBatches(psuData, BATCH_SIZE, ({ item, name }) => {
         return prisma.part.create({
             data: {
-                name: item.name,
-                brand: item.name.split(" ")[0] || "Unknown",
-                category: "PSU",
-                basePrice: item.price,
+                ...partFields(name, item, "PSU", searchQuery(withExtra(item.name, `${item.wattage}W`, String(item.wattage)))),
                 psuDetails: {
                     create: {
                         wattage: item.wattage,
@@ -191,125 +207,114 @@ async function main() {
             }
         });
     })
-    */
 
-    
+
     // --- RAM ---
 
-    /*
     console.log("Processing RAM...");
-    const ramData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/ram.json'), 'utf8')) as RamJson[] ;
-
-    await seedInBatches(ramData, BATCH_SIZE, (item) => {
-        // Fallback variables
-        let parsedSpeedMhz = 0;
-        let parsedGeneration = "Unknown";
-
-        // Type Check Logic
+    // Generation/speed and stick layout of a RAM kit, e.g. ["DDR4", 3200, 2, 8].
+    // Legacy RAM lists speed as a single number, with no generation
+    function ramSpecs(item: RamJson) {
         if (Array.isArray(item.speed) && item.speed.length >= 2) {
             // If it's modern RAM and formatted as [Gen, Speed]
-            parsedGeneration = "DDR" + item.speed[0];
-            parsedSpeedMhz = item.speed[1] || 0;
-        } else if (typeof item.speed === 'number') {
-            // If it's legacy RAM and just a single number
-            parsedSpeedMhz = item.speed;
+            return { generation: "DDR" + item.speed[0], speedMhz: item.speed[1] || 0 };
         }
+        return { generation: "Unknown", speedMhz: typeof item.speed === 'number' ? item.speed : 0 };
+    }
+
+    // One name covers many kits, e.g. "Corsair Vengeance LPX 16 GB (DDR4-3200, 2 x 8GB)"
+    const ramData = uniqueNames(readJson<RamJson>('ram.json'), item => item.name, item => {
+        const { generation, speedMhz } = ramSpecs(item);
+        const speed = generation === "Unknown" ? `${speedMhz} MHz` : `${generation}-${speedMhz}`;
+        return [speed, `${item.modules[0]} x ${item.modules[1]}GB`];
+    });
+    await clearCategory("RAM", () => prisma.ram.deleteMany());
+
+    await seedInBatches(ramData, BATCH_SIZE, ({ item, name }) => {
+        const { generation, speedMhz } = ramSpecs(item);
+        // Names already include the total capacity ("16 GB"); speed tells kits apart on eBay
+        const query = searchQuery(item.name, generation === "Unknown" ? "" : generation, String(speedMhz));
 
         return prisma.part.create({
             data: {
-                name: item.name,
-                brand: item.name.split(" ")[0] || "Unknown",
-                category: "RAM",
-                basePrice: item.price,
+                ...partFields(name, item, "RAM", query),
                 ramDetails: {
                     create: {
                         capacityGb: item.modules[0] * item.modules[1], // e.g., 2 * 16 = 32GB
                         stickSize: item.modules[1],
                         stickCount: item.modules[0],
-                        speedMhz: parsedSpeedMhz,
-                        generation: parsedGeneration
-                    } 
+                        speedMhz,
+                        generation
+                    }
                 }
             }
         });
     })
-    */
-    
+
 
     // --- STORAGE ---
-    
-    /*
+
     console.log("Processing Storage...");
-    const storageData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/storage.json'), 'utf8')) as StorageJson[];
+    // If the type is a number (spindle RPM), it is an HDD
+    const storageType = (item: StorageJson) => isNaN(Number(item.type)) ? String(item.type) : "HDD";
 
-    await seedInBatches(storageData, BATCH_SIZE, (item) => {
-        let normalizedType = String(item.type);
+    // One name covers every capacity, e.g. "Samsung 990 Pro (2TB)"
+    const storageData = uniqueNames(
+        readJson<StorageJson>('storage.json'),
+        item => item.name,
+        item => [capacityLabel(item.capacity), storageType(item), item.interface],
+    );
+    await clearCategory("Storage", () => prisma.storage.deleteMany());
 
-        // If the type is a number, it is an HDD
-        if (!isNaN(Number(item.type))) {
-            normalizedType = "HDD";
-        }
-
+    await seedInBatches(storageData, BATCH_SIZE, ({ item, name }) => {
         return prisma.part.create({
             data: {
-                name: item.name,
-                brand: item.name.split(" ")[0] || "Unknown",
-                category: "Storage",
-                basePrice: item.price,
+                ...partFields(name, item, "Storage", searchQuery(withExtra(item.name, capacityLabel(item.capacity)))),
                 storageDetails: {
                     create: {
                         capacityGb: item.capacity,
-                        type: normalizedType,
+                        type: storageType(item),
                         interface: item.interface
                     }
                 }
             }
         });
     })
-    */
 
     // --- COOLER ---
 
-    /*
     console.log("Processing Cooler...");
-    const coolerData = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data/cooler.json'), 'utf8')) as CoolerJson[];
+    // Takes max value of a [min, max] range, falls back to minimum
+    const maxOf = (value: number | number[] | null) => Array.isArray(value) ? value[1] || value[0] || 0 : value;
 
-    await seedInBatches(coolerData, BATCH_SIZE, (item) => {
-        let finalRpm = 0;
-        let finalNoise = 0;
+    // AIO names are reused across radiator sizes, e.g. "Thermalright Aqua Elite V3 (240mm)"
+    const coolerData = uniqueNames(
+        readJson<CoolerJson>('cooler.json'),
+        item => item.name,
+        item => {
+            const rpm = maxOf(item.rpm);
+            const noise = maxOf(item.noise_level);
+            return [item.size ? `${item.size}mm` : "", rpm ? `${rpm} RPM` : "", noise ? `${noise} dB` : ""];
+        },
+    );
+    await clearCategory("Cooler", () => prisma.cooler.deleteMany());
 
-        if (Array.isArray(item.rpm)) {
-            // Take max RPM value, fallback to minimum RPM
-            finalRpm = item.rpm[1] || item.rpm[0] || 0;
-        }
-        else {
-            finalRpm = item.rpm;
-        }
-
-        if (Array.isArray(item.noise_level)) {
-            // Take max noise value, fallback to minimum noise
-            finalNoise = item.noise_level[1] || item.noise_level[0] || 0;
-        }
-        else {
-            finalNoise = item.noise_level;
-        }
+    await seedInBatches(coolerData, BATCH_SIZE, ({ item, name }) => {
+        // AIO titles give the radiator size, e.g. "360mm"
+        const query = searchQuery(item.size ? withExtra(item.name, String(item.size)) : item.name);
 
         return prisma.part.create({
             data: {
-                name: item.name,
-                brand: item.name.split(" ")[0] || "Unknown",
-                category: "Cooler",
-                basePrice: item.price,
+                ...partFields(name, item, "Cooler", query),
                 coolerDetails: {
                     create: {
-                        rpm: finalRpm,
-                        noise_level: finalNoise
+                        rpm: maxOf(item.rpm),
+                        noise_level: maxOf(item.noise_level)
                     }
                 }
             }
         })
     })
-    */
 
 
     console.log("All parts have been successfully uploaded to the database!");

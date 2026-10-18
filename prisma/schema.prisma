@@ -21,6 +21,7 @@ model Part {
   brand               String
   category            String // CPU, GPU, RAM, etc
   basePrice           Float?
+  searchQuery         String? // eBay search keyword, e.g. name plus chipset or capacity
 
   // Relations to specific specs
   cpuDetails          Cpu?
@@ -31,7 +32,22 @@ model Part {
   gpuDetails          Gpu?
   coolerDetails       Cooler?
 
+  priceCache          PriceCache?
+
+  // The frontend and saved builds identify parts by name, so a name can't
+  // repeat within a category. Also the index /api/price looks parts up by
+  @@unique([category, name])
   @@map("parts_test")
+}
+
+// Last eBay price lookup per part, reused until it's a few hours old
+model PriceCache {
+  id            Int       @id @default(autoincrement())
+  part          Part      @relation(fields: [partId], references: [id], onDelete: Cascade)
+  partId        Int       @unique
+  priceCad      Float     // median of the usable listings, 0 if there were none
+  listingCount  Int       // how many listings the median came from
+  fetchedAt     DateTime
 }
 
 model Cpu {
