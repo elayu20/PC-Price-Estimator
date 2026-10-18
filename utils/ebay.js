@@ -45,15 +45,44 @@ export async function getEbayToken() {
     }
 }
 
-// Returns eBay's search results, or null if eBay couldn't be reached or returned an error
-export async function searchEbay(keyword) {
+// eBay category per part category, so searches skip cables, fans, "PLC" listings
+// and other look-alikes. The Browse API takes only one category per search, so
+// storage picks SSD or HDD by drive type
+const EBAY_CATEGORY_IDS = {
+    CPU: "164",          // CPUs/Processors
+    GPU: "27386",        // Graphics/Video Cards
+    RAM: "170083",       // Memory (RAM)
+    Motherboard: "1244", // Motherboards
+    PSU: "42017",        // Power Supplies
+    Cooler: "131486",    // CPU Fans & Heatsinks
+    SSD: "175669",       // Solid State Drives
+    HDD: "56083",        // Internal Hard Disk Drives
+};
+
+// Takes a DB category ("CPU", "Storage"...) and, for storage, the drive type
+export function ebayCategoryId(category, storageType) {
+    if (category === "Storage") return EBAY_CATEGORY_IDS[storageType === "HDD" ? "HDD" : "SSD"];
+    return EBAY_CATEGORY_IDS[category];
+}
+
+// Returns eBay's search results, or null if eBay couldn't be reached or returned an error.
+// nearbyOnly limits results to sellers in North America. Overseas listings on
+// eBay CA (often new-old-stock from Japan or Europe) ask far above what a
+// Canadian buyer pays, and they fill most of the top results for GPUs
+export async function searchEbay(keyword, categoryId, nearbyOnly = false) {
     const token = await getEbayToken();
     if (!token) return null;
 
     // Format the eBay Search URL
     // We use encodeURIComponent to turn spaces into %20 (e.g. RTX 4090 -> RTX%204090)
-    // limit=20 asks for the top 20 results to keep the data small but smooth out inconsistent listings
-    const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(keyword)}&limit=20`;
+    // Only fixed-price new/used listings: auctions show the current bid, not
+    // what the part sells for, and "for parts" condition items aren't working parts.
+    // limit=50 leaves enough listings after pricing.js drops the junk
+    const filters = ["buyingOptions:{FIXED_PRICE}", "conditions:{NEW|USED}"];
+    if (nearbyOnly) filters.push("itemLocationRegion:NORTH_AMERICA");
+    const params = new URLSearchParams({ q: keyword, limit: "50", filter: filters.join(",") });
+    if (categoryId) params.set("category_ids", categoryId);
+    const url = `https://api.ebay.com/buy/browse/v1/item_summary/search?${params}`;
 
     try {
         // Send the request with the token attached
