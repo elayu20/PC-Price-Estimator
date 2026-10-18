@@ -145,14 +145,15 @@ export default function Home() {
     const isStale = () => latestPriceRequest.current[partType] !== partName;
 
     try {
-      const response = await fetch(`/api/price?part=${encodeURIComponent(partName)}`);
+      const params = new URLSearchParams({ category: partType, part: partName });
+      const response = await fetch(`/api/price?${params}`);
 
       if (!response.ok) throw new Error("API failed");
 
       const data = await response.json();
       if (isStale()) return;
 
-      // priceCad > 0 means we got a real average from eBay listings
+      // priceCad > 0 means we got a real median from eBay listings
       // priceCad === 0 means the API found no usable listings - treat that
       // as a failure to fetch a price, not a real $0 price
       if (data.priceCad && data.priceCad > 0) {
