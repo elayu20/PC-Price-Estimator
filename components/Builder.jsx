@@ -1,9 +1,13 @@
 "use client"
 import { useEffect, useState, useMemo, useRef } from "react"
 import PartSelect from "./PartSelect";
+import PartCard, { PART_COLUMNS } from "./PartCard";
+import BuildSummary from "./BuildSummary";
 import BuildControls from "./BuildControls";
 import SavedBuilds from "./SavedBuilds";
+import { ChevronIcon } from "./Icons";
 import { checkCompatibility } from "../utils/compatibility";
+import { MIN_LISTINGS } from "../utils/pricing";
 import { createBuild, deleteBuild, editToken, fetchBuild, fetchMyBuilds, updateBuild } from "../utils/buildStorage";
 
 // Every part category, in display order. `key` matches the /api/parts catalog
@@ -43,9 +47,14 @@ export default function Builder({ buildId }) {
 
   // Selected part name per category ("" = nothing selected)
   const [build, setBuild] = useState(() => perCategory(""));
-  // Part names and specs from the DB, grouped by category
-  const [catalog, setCatalog] = useState(null);
-  // Live eBay price per category (null = nothing selected, still loading, or unavailable)
+  // Part names and specs from the DB, by category: { cpu: { "Name": { specs } } }.
+  // A category is only fetched once it's needed (see loadCategory)
+  const [catalog, setCatalog] = useState({});
+  // Categories requested so far, so each is fetched only once
+  const catalogRequests = useRef({});
+  // Live eBay price per category: the /api/price response { priceCad,
+  // listingCount, fetchedAt, stale }, or null (nothing selected, still loading,
+  // or unavailable)
   const [livePrices, setLivePrices] = useState(() => perCategory(null));
 
   // Tracks, per part, whether we tried to fetch a live price and failed
@@ -73,18 +82,25 @@ export default function Builder({ buildId }) {
   // Id of the build last opened, so the /build/<id> effect doesn't reopen it
   const openedId = useRef(null);
 
-  // Fetch the part catalog from the DB
-  useEffect(() => {
-    // This runs once when the page first loads
-    fetch("/api/parts")
-      .then((res) => res.json())
-      .then((data) => {
-        setCatalog(data);
+  // Fetches one category's parts from the DB, the first time its dropdown opens
+  // or a part in it is picked (the compatibility check and summary need its specs)
+  function loadCategory(key) {
+    if (catalogRequests.current[key]) return;
+    catalogRequests.current[key] = true;
+
+    fetch(`/api/parts?category=${key}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
       })
+      .then((parts) => setCatalog(prev => ({ ...prev, [key]: parts })))
       .catch((err) => {
-        console.error("Failed to load parts catalog", err);
-      })
-  }, [])
+        console.error(`Failed to load ${key} parts`, err);
+        // Opening the dropdown again retries
+        catalogRequests.current[key] = false;
+        setStatus("Couldn't load some parts. Open the list again to retry.");
+      });
+  }
 
   // Load the "My builds" list
   useEffect(() => {
@@ -108,7 +124,8 @@ export default function Builder({ buildId }) {
 
   // Filter logic for RAM
   const filteredRamOptions = useMemo(() => {
-    if (!catalog?.ram) return {};
+    // null tells the dropdown the parts are still loading
+    if (!catalog.ram) return null;
 
     return Object.fromEntries(
       Object.entries(catalog.ram).filter(([name, data]) => {
@@ -123,11 +140,11 @@ export default function Builder({ buildId }) {
         return matchesSticks && matchesGen && matchesCap;
       })
     );
-  }, [catalog?.ram, ramSticks, ramGen, ramCap]);
+  }, [catalog.ram, ramSticks, ramGen, ramCap]);
 
-  // Specs of each selected part (undefined = nothing selected)
+  // Specs of each selected part (undefined = nothing selected, or not loaded yet)
   const selectedSpecs = useMemo(() => Object.fromEntries(
-    CATEGORIES.map(({ key }) => [key, catalog?.[key]?.[build[key]]?.specs])
+    CATEGORIES.map(({ key }) => [key, catalog[key]?.[build[key]]?.specs])
   ), [catalog, build]);
 
   // Conflicts between the selected parts
@@ -142,14 +159,45 @@ export default function Builder({ buildId }) {
   }
 
   // livePrices only ever holds a real (> 0) eBay price or null, so missing counts as 0
-  const total = CATEGORIES.reduce((sum, { key }) => sum + (livePrices[key] ?? 0), 0);
+  const total = CATEGORIES.reduce((sum, { key }) => sum + (livePrices[key]?.priceCad ?? 0), 0);
+
+  // Compatibility messages per category, shown on that category's row. The full
+  // message goes on the first part's row; the other parts just point to it
+  const labelOf = Object.fromEntries(CATEGORIES.map(({ key, label }) => [key, label]));
+  const issuesByCategory = Object.fromEntries(CATEGORIES.map(({ key }) => [
+    key,
+    // A Set, so two RAM issues give the motherboard one pointer, not two
+    [...new Set(compatibilityIssues
+      .filter(({ parts }) => parts.includes(key))
+      .map(({ parts, message }) => (parts[0] === key ? message : `Conflicts with the ${labelOf[parts[0]]} (see above)`)))],
+  ]));
 
   // Parts left out of the total because eBay had no price for them
   const unpricedCount = Object.values(priceErrors).filter(Boolean).length;
 
+  // Footnotes for prices worth a caveat (missing, few listings, outdated),
+  // numbered in category order. `priceMarkers` maps a category to its number
+  const priceNotes = [];
+  const priceMarkers = {};
+  CATEGORIES.forEach(({ key, label }) => {
+    const price = livePrices[key];
+    const caveats = [];
+    if (build[key] && priceErrors[key]) caveats.push("no usable eBay listings, so it's left out of the total");
+    if (price && price.listingCount < MIN_LISTINGS) {
+      caveats.push(`only ${price.listingCount} matching ${price.listingCount === 1 ? "listing" : "listings"}, so treat it as rough`);
+    }
+    if (price?.stale) caveats.push("eBay couldn't be reached, so this is the last known price");
+    if (caveats.length === 0) return;
+
+    const n = priceNotes.length + 1;
+    priceMarkers[key] = n;
+    priceNotes.push({ n, text: `${label}: ${caveats.join("; ")}.` });
+  });
+
   // Selects a part in one category and fetches its live price
   function selectPart(partType, partName) {
     setBuild(prev => ({ ...prev, [partType]: partName }));
+    if (partName) loadCategory(partType);
     fetchLivePrice(partType, partName);
   }
 
@@ -281,7 +329,7 @@ export default function Builder({ buildId }) {
       // priceCad === 0 means the API found no usable listings - treat that
       // as a failure to fetch a price, not a real $0 price
       if (data.priceCad && data.priceCad > 0) {
-        setLivePrices(prev => ({ ...prev, [partType]: data.priceCad }));
+        setLivePrices(prev => ({ ...prev, [partType]: data }));
       } else {
         setPriceErrors(prev => ({ ...prev, [partType]: true }));
       }
@@ -294,103 +342,124 @@ export default function Builder({ buildId }) {
     }
   }
 
-  // If the catalog hasn't loaded yet, show something instead of a blank page
-  if (!catalog) {
-    return <p>Loading parts...</p>
-  }
+  const ramFilters = (
+    <>
+      <span className="relative">
+        <select aria-label="RAM sticks" value={ramSticks} onChange={(e) => setRamSticks(e.target.value)} className="field field-select">
+          <option value="">Any sticks</option>
+          {[1, 2, 4, 8].map(num => <option key={num} value={num}>{num} {num === 1 ? "stick" : "sticks"}</option>)}
+        </select>
+        <ChevronIcon className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
+      </span>
+
+      <span className="relative">
+        <select aria-label="RAM generation" value={ramGen} onChange={(e) => setRamGen(e.target.value)} className="field field-select">
+          <option value="">Any gen</option>
+          {["DDR3", "DDR4", "DDR5"].map(gen => <option key={gen} value={gen}>{gen}</option>)}
+        </select>
+        <ChevronIcon className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
+      </span>
+
+      <span className="relative">
+        <select aria-label="RAM capacity" value={ramCap} onChange={(e) => setRamCap(e.target.value)} className="field field-select">
+          <option value="">Any capacity</option>
+          {[8, 16, 32, 64, 128].map(cap => <option key={cap} value={cap}>{cap}GB total</option>)}
+        </select>
+        <ChevronIcon className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
+      </span>
+    </>
+  );
 
   return (
-      <main>
-        <h1>PC Price Estimator</h1>
+    <main className="mx-auto max-w-7xl px-4 pt-8 pb-16 sm:px-6">
+      <div className="mb-5">
+        <h1 className="guide-head text-4xl leading-none sm:text-5xl">{openBuild?.name ?? "New build"}</h1>
+        <p className="mt-2 max-w-2xl text-sm text-ink-2">
+          Pick a part in each category. Prices are the median of filtered new and used eBay.ca listings, and incompatible parts are flagged.
+        </p>
+      </div>
 
-        {openBuild && (
-          <div style={{ marginBottom: "16px", padding: "12px", border: "1px solid #b0c4e8", borderRadius: "8px", backgroundColor: "#f0f5fd" }}>
-            {openBuild.owned ? (
-              <>Editing your build <strong>{openBuild.name}</strong>{hasUnsavedChanges && " (unsaved changes)"}</>
-            ) : (
-              <>
-                Viewing shared build <strong>{openBuild.name}</strong>. You can change parts freely;
-                saving makes a copy in your builds and leaves the original as is.
-              </>
-            )}
-          </div>
-        )}
-
-        {CATEGORIES.map(({ key, label }) => {
-          const select = (
-            <PartSelect
-              label={label}
-              value={build[key]}
-              onChange={(val) => selectPart(key, val)}
-              options={key === "ram" ? filteredRamOptions : catalog[key]}
-              getIssues={(specs) => optionIssues(key, specs)}
-            />
-          );
-
-          if (key !== "ram") {
-            return <div key={key} style={{ marginBottom: "12px" }}>{select}</div>;
-          }
-
-          // RAM gets mini filters above its dropdown
-          return (
-            <div key={key} style={{ marginBottom: "12px", border: "1px solid #ddd", padding: "12px", borderRadius: "8px" }}>
-              <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
-                <select value={ramSticks} onChange={(e) => setRamSticks(e.target.value)} style={{ padding: "6px", flex: 1 }}>
-                  <option value="">Any Sticks</option>
-                  {[1, 2, 4, 8].map(num => <option key={num} value={num}>{num} Sticks</option>)}
-                </select>
-
-                <select value={ramGen} onChange={(e) => setRamGen(e.target.value)} style={{ padding: "6px", flex: 1 }}>
-                  <option value="">Any Gen</option>
-                  {["DDR3", "DDR4", "DDR5"].map(gen => <option key={gen} value={gen}>{gen}</option>)}
-                </select>
-
-                <select value={ramCap} onChange={(e) => setRamCap(e.target.value)} style={{ padding: "6px", flex: 1 }}>
-                  <option value="">Any Capacity</option>
-                  {[8, 16, 32, 64, 128].map(cap => <option key={cap} value={cap}>{cap}GB Total</option>)}
-                </select>
-              </div>
-
-              {select}
-            </div>
-          );
-        })}
-
-        <div style={{ marginTop: "24px", padding: "16px", border: "1px solid #ccc" }}>
-          <h3>Build Summary</h3>
-          {CATEGORIES.map(({ key, label }) => (
-            <p key={key}>
-              {label}{build[key] ? ` (${build[key]})` : ""}:{" "}
-              {priceErrors[key] ? "Price unavailable" : `$${(livePrices[key] ?? 0).toFixed(2)}`}
-            </p>
-          ))}
-
-          {compatibilityIssues.length > 0 && (
-            <div style={{ margin: "12px 0", padding: "12px", border: "1px solid #e0a0a0", borderRadius: "8px", backgroundColor: "#fdf0f0", color: "#a00" }}>
-              <strong>Compatibility issues</strong>
-              <ul style={{ margin: "8px 0 0", paddingLeft: "20px" }}>
-                {compatibilityIssues.map(({ message }) => <li key={message}>{message}</li>)}
-              </ul>
-            </div>
+      {openBuild && (
+        <p className="mb-5 border-[1.5px] border-ink bg-paper px-4 py-3 text-sm">
+          {openBuild.owned ? (
+            <>
+              <strong className="font-bold">Your build.</strong> Save Changes updates it, and its link shows the new version.
+              {hasUnsavedChanges && <strong className="ml-2 bg-ink px-1.5 py-0.5 text-xs font-bold text-paper uppercase">Unsaved changes</strong>}
+            </>
+          ) : (
+            <>
+              <strong className="font-bold">Shared build.</strong>{" "}
+              <span className="text-ink-2">Change any part you like. Saving makes a copy in your builds and leaves the original as is.</span>
+            </>
           )}
+        </p>
+      )}
 
-          <h2>
-            Total: ${total.toFixed(2)}
-            {unpricedCount > 0 && ` (${unpricedCount} ${unpricedCount === 1 ? "part" : "parts"} unpriced)`}
-          </h2>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_25rem] xl:gap-10">
+        <div className="border-2 border-ink">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b-[1.5px] border-ink bg-paper px-4 py-3 md:px-5">
+            <h2 className="guide-head text-xl">Parts</h2>
+            <span className="text-xs text-ink-2">Compatible parts are listed first in each search</span>
+          </div>
+          <div className={`hidden border-b-[1.5px] border-ink bg-paper px-5 py-2 text-[0.6875rem] font-bold tracking-wider text-muted uppercase md:grid ${PART_COLUMNS} md:gap-x-4`}>
+            <span>Category</span>
+            <span>Part</span>
+            <span className="text-right">Listings</span>
+            <span className="pr-3 text-right">Median</span>
+          </div>
+          {CATEGORIES.map(({ key, label }) => (
+            <PartCard
+              key={key}
+              category={key}
+              label={label}
+              partName={build[key]}
+              specs={selectedSpecs[key]}
+              price={livePrices[key]}
+              priceError={priceErrors[key]}
+              issues={issuesByCategory[key]}
+              note={priceMarkers[key]}
+              // RAM gets mini filters above its search box
+              filters={key === "ram" ? ramFilters : null}
+            >
+              <PartSelect
+                category={key}
+                label={label}
+                value={build[key]}
+                onChange={(val) => selectPart(key, val)}
+                onOpen={() => loadCategory(key)}
+                options={key === "ram" ? filteredRamOptions : catalog[key] ?? null}
+                getIssues={(specs) => optionIssues(key, specs)}
+              />
+            </PartCard>
+          ))}
         </div>
 
-      <BuildControls
-        name={buildName}
-        onNameChange={setBuildName}
-        canUpdate={Boolean(openBuild?.owned)}
-        isShared={Boolean(openBuild && !openBuild.owned)}
-        saving={saving}
-        onSave={() => save(false)}
-        onSaveAsNew={() => save(true)}
-        onReset={handleReset}
-      />
-      {status && <p>{status}</p>}
+        <BuildSummary
+          title={buildName.trim() || "Untitled build"}
+          categories={CATEGORIES}
+          build={build}
+          livePrices={livePrices}
+          priceErrors={priceErrors}
+          issues={compatibilityIssues}
+          total={total}
+          unpricedCount={unpricedCount}
+          notes={priceNotes}
+          markers={priceMarkers}
+          status={status}
+          controls={
+            <BuildControls
+              name={buildName}
+              onNameChange={setBuildName}
+              canUpdate={Boolean(openBuild?.owned)}
+              isShared={Boolean(openBuild && !openBuild.owned)}
+              saving={saving}
+              onSave={() => save(false)}
+              onSaveAsNew={() => save(true)}
+              onReset={handleReset}
+            />
+          }
+        />
+      </div>
 
       <SavedBuilds
         builds={myBuilds}
@@ -401,6 +470,6 @@ export default function Builder({ buildId }) {
         onRename={handleRename}
         onDelete={handleDelete}
       />
-      </main>
+    </main>
   );
 }

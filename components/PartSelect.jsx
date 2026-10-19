@@ -1,15 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import { specLabels } from "../utils/format";
+import { CloseIcon, ConflictIcon, SearchIcon } from "./Icons";
+
+// Most options rendered at once. The rest are reached by typing
+const MAX_SHOWN = 50;
 
 /*
     PartSelect: A custom Autocomplete Combobox component
-    Replaces the standard <select> with a searchable text input + floating list
+    Replaces the standard <select> with a searchable text input + floating list.
+    Keyboard: Up/Down move through the list, Enter picks, Escape closes
 */
 
+// `options` is null until the category's parts have loaded; `onOpen` is called
+// whenever the list opens, so the parent can load them then.
 // getIssues(specs) returns the compatibility problems an option would cause with
 // the rest of the build. Those options stay clickable but are flagged in red
-export default function PartSelect({ label, value, onChange, options, getIssues }) {
+export default function PartSelect({ category, label, value, onChange, options, getIssues, onOpen }) {
     // 1) State
     // query is what the user is typing, or null when they aren't searching.
     // While it's null the box just shows the selected part (value)
@@ -18,6 +26,12 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
 
     // isOpen tracks whether the custom dropdown list is visible
     const [isOpen, setIsOpen] = useState(false);
+    // Index of the keyboard-highlighted option in the shown list
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    const listRef = useRef(null);
+    const inputRef = useRef(null);
+    const listId = useId();
 
     // If the parent picks a part (e.g. Load), stop showing any half-typed search.
     // Done during render instead of in an effect so there's no extra render pass
@@ -28,7 +42,7 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
     }
 
     // 2) Filter the data based on the text input
-    const filteredEntries = useMemo ( () => {
+    const filteredEntries = useMemo(() => {
         if (!options) return [];
 
         const q = inputValue.trim().toLowerCase();
@@ -44,15 +58,6 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
         );
     }, [options, inputValue]);
 
-    // If options isn't loaded yet, show a disabled input
-    if (!options) {
-        return (
-            <div style={{ marginBottom: 16 }}>
-                <input disabled placeholder={`Loading ${label} data...`} style={{ width: "100%", padding: "8px" }} />
-            </div>
-        );
-    }
-
     // Attach each option's compatibility issues and move compatible options to the
     // top (sort is stable, so each group keeps its order). Only done while the list
     // is open, since it checks every matching option, not just the 50 shown
@@ -62,7 +67,15 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
             .sort((a, b) => (a[2].length > 0) - (b[2].length > 0))
         : [];
 
-    const limitedEntries = checkedEntries.slice(0, 50);
+    const limitedEntries = checkedEntries.slice(0, MAX_SHOWN);
+
+    function open() {
+        if (!isOpen) {
+            setIsOpen(true);
+            setActiveIndex(0);
+        }
+        onOpen?.();
+    }
 
     // 3) Handle user selection
     const handleSelect = (name) => {
@@ -71,124 +84,154 @@ export default function PartSelect({ label, value, onChange, options, getIssues 
         setIsOpen(false); // Close the dropdown
     }
 
+    function handleClear() {
+        onChange("");
+        setQuery(null);
+        inputRef.current?.focus();
+    }
+
+    // Highlights option `index` and scrolls it into view
+    function moveTo(index) {
+        setActiveIndex(index);
+        listRef.current?.children[index]?.scrollIntoView({ block: "nearest" });
+    }
+
+    function handleKeyDown(e) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!isOpen) return open();
+            const last = limitedEntries.length - 1;
+            if (last < 0) return;
+            const next = e.key === "ArrowDown" ? Math.min(activeIndex + 1, last) : Math.max(activeIndex - 1, 0);
+            moveTo(next);
+        } else if (e.key === "Enter" && isOpen) {
+            e.preventDefault();
+            const entry = limitedEntries[activeIndex];
+            if (entry) handleSelect(entry[0]);
+        } else if (e.key === "Escape" && isOpen) {
+            e.preventDefault();
+            setIsOpen(false);
+            setQuery(null);
+        }
+    }
+
+    const showClear = Boolean(value || query);
+    // A picked part's full name, wrapped, instead of a cut-off input value.
+    // Typing (or opening the list) goes back to the normal input
+    const showPicked = Boolean(value) && query === null && !isOpen;
+
     return (
         // The wrapper must be relative so the absolute dropdown positions correctly beneath it
-        <div style={{ marginBottom: 16, position: "relative" }}>
+        <div className="relative">
+            <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-3.5 left-3 size-4 text-muted" />
+                {showPicked && (
+                    <div aria-hidden className="min-h-11 border-[1.5px] border-ink bg-paper py-2.5 pr-10 pl-9 text-[0.9375rem] leading-snug font-semibold break-words">
+                        {value}
+                    </div>
+                )}
+                <input
+                    ref={inputRef}
+                    role="combobox"
+                    aria-label={label}
+                    aria-expanded={isOpen}
+                    aria-controls={listId}
+                    aria-autocomplete="list"
+                    aria-activedescendant={isOpen && limitedEntries[activeIndex] ? `${listId}-${activeIndex}` : undefined}
+                    value={inputValue}
+                    placeholder={`Search ${label}...`}
+                    className={`w-full border-[1.5px] border-ink pr-10 pl-9 text-[0.9375rem] placeholder:text-faint outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+                        // While a part is shown in full (below), the input sits on top of it
+                        // with invisible text, so clicking or tabbing in still starts a search
+                        showPicked ? "absolute inset-0 h-full bg-transparent text-transparent" : "h-11 bg-paper text-ink"
+                    }`}
 
-            <input
-                value={inputValue}
-                placeholder={`Search or select ${label}...`}
-                style={{ width: "100%", padding: "8px", boxSizing: "border-box" }}
+                    // When the user types:
+                    onChange={(e) => {
+                        setQuery(e.target.value);
+                        setActiveIndex(0);
+                        listRef.current?.scrollTo(0, 0);
+                        // Clear the parent's selected value because they are searching for a new one
+                        if (value) onChange("");
+                        open(); // Ensure dropdown opens when typing
+                    }}
 
-                // When the user types:
-                onChange={ (e) => {
-                    setQuery(e.target.value);
-                    // Clear the parent's selected value because they are searching for a new one
-                    if (value) onChange("");
-                    setIsOpen(true); // Ensure dropdown opens when typing
-                }}
+                    // Open dropdown when clicking into the input
+                    onFocus={open}
+                    onKeyDown={handleKeyDown}
 
-                // Open dropdown when clicking into the input
-                onFocus={ () => setIsOpen(true)}
-
-                // Close dropdown when clicking away
-                // The setTimeout is a classic React trick
-                onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-            />
+                    // Close dropdown when clicking away
+                    // The setTimeout lets a click on an option land first
+                    onBlur={() => setTimeout(() => setIsOpen(false), 150)}
+                />
+                {showClear && (
+                    <button
+                        type="button"
+                        aria-label={`Clear ${label}`}
+                        // Keeps focus in the input, so the list doesn't close and reopen
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={handleClear}
+                        className="absolute top-1.5 right-1.5 grid size-8 place-items-center text-muted hover:bg-paper-2 hover:text-ink"
+                    >
+                        <CloseIcon className="size-4" />
+                    </button>
+                )}
+            </div>
 
             {/* Custom Dropdown Menu */}
             {isOpen && (
-                <ul style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    margin: 0,
-                    padding: 0,
-                    listStyle: "none",
-                    backgroundColor: "white",
-                    border: "1px solid #ccc",
-                    maxHeight: "200px",
-                    overflowY: "auto",
-                    zIndex: 10, // Ensure it floats above other inputs below it
-                    boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
-                }}>
-                    {limitedEntries.length > 0 ? (
-                        limitedEntries.map(([name, data, issues]) => {
-                            // Extract specs to build a helpful label
-                            const s = data.specs || {};
-                            let specLabel = "";
-
-                            // Check what kind of part it is to show the right specs
-                            if (label === "RAM" && s.generation) {
-                                specLabel = `${s.generation}-${s.speedMhz} MHz | ${s.stickCount} x ${s.capacityGb / s.stickCount}GB`;
-                            }
-                            else if (label === "CPU" && s.socket) {
-                                specLabel = `${s.socket} | ${s.cores} Cores`;
-                            }
-                            else if (label === "GPU" && s.chipset) {
-                                specLabel = `${s.vramGb}GB | ${s.chipset}`;
-                            }
-                            else if (label === "Motherboard" && s.socket) {
-                                const wifiText = s.hasWifi ? " | WiFi" : "";
-                                const memText = s.memoryType && s.memoryType !== "Unknown" ? ` ${s.memoryType}` : "";
-                                specLabel = `${s.socket} | ${s.formFactor} | ${s.ramSlots}x${memText} RAM Slots${wifiText}`;
-                            }
-                            else if (label === "Storage" && s.capacityGb) {
-                                let capacityText = s.capacityGb >= 1000
-                                    ? `${(s.capacityGb / 1000).toFixed(1).replace('.0', '')}TB`
-                                    : `${s.capacityGb}GB`;
-
-                                specLabel = `${capacityText} | ${s.type} | ${s.interface}`;
-                            }
-                            else if (label === "PSU" && s.wattage) {
-                                const efficiencyText = s.efficiency && s.efficiency !== "None" ? s.efficiency : "Standard";
-                                const modularText = s.modularity !== "None" ? `${s.modularity} Modularity` : "Non-Modular";
-                                specLabel = `${s.wattage}W | ${efficiencyText} | ${modularText}`;
-                            }
-                            else if (label === "Cooler" && s.rpm) {
-                                specLabel = `${s.rpm} RPM | ${s.noise_level} dB`;
-                            }
-
+                <ul
+                    ref={listRef}
+                    id={listId}
+                    role="listbox"
+                    aria-label={`${label} options`}
+                    className="absolute inset-x-0 top-full z-20 mt-1 max-h-96 overflow-y-auto border-[1.5px] border-ink bg-paper shadow-[0_12px_28px_-8px_rgb(20_20_20/0.35)]"
+                >
+                    {!options ? (
+                        <li className="px-3 py-3 text-sm text-ink-2">Loading {label} parts...</li>
+                    ) : limitedEntries.length > 0 ? (
+                        limitedEntries.map(([name, data, issues], index) => {
+                            const specs = specLabels(category, data.specs);
                             const incompatible = issues.length > 0;
+                            const active = index === activeIndex;
 
                             return (
                                 <li
                                     key={name}
-                                    // We use onMouseDown instead of onClick
+                                    id={`${listId}-${index}`}
+                                    role="option"
+                                    aria-selected={active}
+                                    // onMouseDown instead of onClick, so it fires before the input's blur
                                     onMouseDown={() => handleSelect(name)}
-                                    style={{
-                                        padding: "10px 8px",
-                                        cursor: "pointer",
-                                        borderBottom: "1px solid #eee",
-                                        // Red left edge so incompatible options stand out while scrolling
-                                        borderLeft: incompatible ? "4px solid #d33" : "4px solid transparent",
-                                        backgroundColor: incompatible ? "#fdf5f5" : "white",
-                                        color: "black",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: "4px"
-                                    }}
+                                    onMouseEnter={() => setActiveIndex(index)}
+                                    className={`flex cursor-pointer flex-col gap-0.5 border-b border-rule px-3 py-2.5 last:border-b-0 ${
+                                        // Pink rows so incompatible options stand out while scrolling
+                                        incompatible ? (active ? "bg-[#f5dde1]" : "bg-conflict-bg") : active ? "bg-paper-2" : ""
+                                    }`}
                                 >
-                                    <span style={{ fontWeight: "500", opacity: incompatible ? 0.6 : 1 }}>{name}</span>
+                                    <span className={`text-sm font-semibold ${incompatible ? "text-ink-2" : "text-ink"}`}>{name}</span>
 
-                                    {specLabel && (
-                                        <span style={{ color: "#666", fontSize: "0.85em", opacity: incompatible ? 0.6 : 1 }}>
-                                            {specLabel}
+                                    {specs.length > 0 && (
+                                        <span className="text-xs text-muted">
+                                            {specs.join(" · ")}
                                         </span>
                                     )}
 
                                     {issues.map((issue) => (
-                                        <span key={issue} style={{ color: "#c00", fontSize: "0.85em" }}>
-                                            ⚠ {issue}
+                                        <span key={issue} className="flex items-start gap-1 text-xs font-semibold text-conflict">
+                                            <ConflictIcon className="mt-px size-3.5 shrink-0" />
+                                            {issue}
                                         </span>
                                     ))}
                                 </li>
                             );
                         })
                     ) : (
-                        <li style={{ padding: "8px", color: "#888" }}>
-                            No matches found
+                        <li className="px-3 py-3 text-sm text-ink-2">No matches. Try fewer words or part of a model number.</li>
+                    )}
+                    {checkedEntries.length > MAX_SHOWN && (
+                        <li aria-hidden className="sticky bottom-0 border-t-[1.5px] border-ink bg-paper px-3 py-2 text-xs font-semibold text-ink-2">
+                            Showing {MAX_SHOWN} of {checkedEntries.length.toLocaleString()}. Type to narrow down.
                         </li>
                     )}
                 </ul>
