@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Price-guide theme tokens. Used as Tailwind colors, e.g. bg-paper, text-muted, border-rule.
+   Guide yellow is reserved for the masthead and the build total, nothing else */
+@theme {
+  --color-bg: #f1f3f4;
+  --color-paper: #ffffff;
+  --color-paper-2: #eceef0;
+  --color-ink: #141414;
+  --color-ink-2: #3b3b37;
+  --color-muted: #5b5b55;
+  --color-faint: #6b6b64;
+  --color-rule: #d4d4cc;
+  --color-rule-strong: #141414;
+  --color-guide: #f2c200;
+  --color-conflict: #b30f29;
+  --color-conflict-bg: #fbecee;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+  caret-color: var(--color-ink);
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-1.5 border-[1.5px] border-ink bg-paper px-4 text-sm font-semibold text-ink transition-colors hover:bg-paper-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-ink text-paper hover:bg-ink-2;
+  }
+  .field {
+    @apply h-10 border-[1.5px] border-ink bg-paper px-3 text-sm text-ink placeholder:text-faint outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink;
+  }
+  /* Native select; the chevron is a ChevronIcon placed over it */
+  .field-select {
+    @apply appearance-none pr-8 text-[0.8125rem] font-semibold;
+  }
+  /* After .field so it also shrinks fields */
+  .btn-sm {
+    @apply h-8 px-2.5 text-xs;
+  }
+  /* Condensed uppercase voice for headings, category names and figures */
+  .guide-head {
+    @apply font-extrabold uppercase font-stretch-condensed;
+  }
+}
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #b5b5ac transparent;
+}
