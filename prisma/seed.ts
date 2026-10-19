@@ -89,12 +89,11 @@ async function clearCategory(category: string, deleteSpecs: () => Promise<unknow
 }
 
 // Fields shared by every part row. `name` must be unique within its category
-function partFields(name: string, item: { name: string; price: number | null }, category: string, query: string) {
+function partFields(name: string, item: { name: string }, category: string, query: string) {
     return {
         name,
         brand: item.name.split(" ")[0] || "Unknown",
         category,
-        basePrice: item.price,
         searchQuery: query,
     };
 }

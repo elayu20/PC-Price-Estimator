@@ -20,7 +20,6 @@ model Part {
   name                String
   brand               String
   category            String // CPU, GPU, RAM, etc
-  basePrice           Float?
   searchQuery         String? // eBay search keyword, e.g. name plus chipset or capacity
 
   // Relations to specific specs
