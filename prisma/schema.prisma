@@ -50,6 +50,20 @@ model PriceCache {
   fetchedAt     DateTime
 }
 
+// A saved build, opened by link at /build/<id>. There are no accounts yet, so
+// only the browser that created it can change it: it keeps a secret edit token,
+// and the server stores just the token's hash
+model Build {
+  id            String    @id // short random slug used in share links
+  name          String
+  parts         Json      // { cpu: "Part name", ... } for the selected categories only
+  editTokenHash String    // sha256 hex of the edit token
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("builds")
+}
+
 model Cpu {
   id        Int   @id @default(autoincrement())
   part      Part  @relation(fields: [partId], references: [id])
