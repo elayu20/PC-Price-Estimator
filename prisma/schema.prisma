@@ -52,6 +52,15 @@ model PriceCache {
 // A saved build, opened by link at /build/<id>. There are no accounts yet, so
 // only the browser that created it can change it: it keeps a secret edit token,
 // and the server stores just the token's hash
+// eBay Browse API calls made per UTC day, shared by every server instance, so
+// the app stays under eBay's daily quota
+model EbayUsage {
+  day           String    @id // "YYYY-MM-DD" (UTC)
+  calls         Int
+
+  @@map("ebay_usage")
+}
+
 model Build {
   id            String    @id // short random slug used in share links
   name          String

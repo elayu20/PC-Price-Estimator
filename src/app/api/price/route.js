@@ -4,6 +4,7 @@ import { searchEbay, ebayCategoryId } from "../../../../utils/ebay";
 import { estimatePrice, fallbackQueries, MIN_LISTINGS } from "../../../../utils/pricing";
 import { rateLimit, clientIp } from "../../../../utils/rateLimit";
 import { DB_CATEGORIES } from "../../../../utils/categories";
+import { countEbayCall, secondsUntilReset } from "../../../../utils/ebayBudget";
 
 // Cached prices are reused for this long before eBay is asked again
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -23,8 +24,11 @@ const pendingLookups = new Map();
 // first, with the part's own query and then the broader ones, and only then
 // worldwide, so a near match from a local seller beats an exact overseas one.
 // Stops at the first search with enough usable listings, otherwise keeps the
-// estimate with the most. Returns the cache row, or null if eBay failed
-// (failures aren't cached, so the next request retries)
+// estimate with the most. Returns the cache row, null if eBay failed
+// (failures aren't cached, so the next request retries), or OUT_OF_BUDGET if
+// the daily eBay budget ran out before any search
+const OUT_OF_BUDGET = "out of budget";
+
 async function lookUpPrice(part) {
     const categoryId = ebayCategoryId(part.category, part.storageDetails?.type);
     const queries = [part.searchQuery || part.name, ...fallbackQueries(part)];
@@ -32,6 +36,11 @@ async function lookUpPrice(part) {
     let best = null;
 
     for (const { query, nearbyOnly } of searches) {
+        // Budget ran out partway: keep the best estimate found so far
+        if (!(await countEbayCall())) {
+            if (!best) return OUT_OF_BUDGET;
+            break;
+        }
         const results = await searchEbay(query, categoryId, nearbyOnly);
         if (!results) return null;
 
@@ -110,6 +119,13 @@ export async function GET(request) {
     }
     const fresh = await pendingLookups.get(part.id);
 
+    if (fresh === OUT_OF_BUDGET) {
+        if (cached) return priceResponse(cached, true);
+        return NextResponse.json(
+            { error: "Daily eBay lookup limit reached, try again tomorrow" },
+            { status: 503, headers: { "Retry-After": String(secondsUntilReset()) } },
+        );
+    }
     if (fresh) return priceResponse(fresh);
 
     // eBay itself failed (bad credentials, rate limit, outage). An old price
