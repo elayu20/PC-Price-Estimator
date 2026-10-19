@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-19T00:00:00Z",
+  "title": "Design System: PC Price Estimator",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Cool Ground", "canonical": "#f1f3f4", "tonalRamp": ["#1f2224", "#363a3d", "#50555a", "#6c7277", "#8d9398", "#b2b7bb", "#d6dadc", "#f1f3f4"] },
+      "paper": { "role": "neutral", "displayName": "Table White", "canonical": "#ffffff", "tonalRamp": ["#222222", "#3b3b3b", "#555555", "#727272", "#929292", "#b5b5b5", "#dadada", "#ffffff"] },
+      "paper-2": { "role": "neutral", "displayName": "Pressed Paper", "canonical": "#eceef0", "tonalRamp": ["#1e2124", "#35393d", "#4f5459", "#6b7176", "#8b9196", "#afb4b9", "#d2d6d9", "#eceef0"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#141414", "tonalRamp": ["#141414", "#2b2b2b", "#454545", "#626262", "#828282", "#a6a6a6", "#cccccc", "#f2f2f2"] },
+      "ink-2": { "role": "neutral", "displayName": "Soft Ink", "canonical": "#3b3b37", "tonalRamp": ["#1b1b19", "#3b3b37", "#4f4f4a", "#6b6b65", "#8a8a83", "#acaca5", "#d0d0ca", "#f1f1ee"] },
+      "muted": { "role": "neutral", "displayName": "Muted", "canonical": "#5b5b55", "tonalRamp": ["#1c1c1a", "#33332f", "#5b5b55", "#6e6e67", "#8c8c85", "#adada6", "#d0d0ca", "#f1f1ee"] },
+      "faint": { "role": "neutral", "displayName": "Faint", "canonical": "#6b6b64", "tonalRamp": ["#1c1c1a", "#33332f", "#4d4d48", "#6b6b64", "#8c8c85", "#adada6", "#d0d0ca", "#f1f1ee"] },
+      "rule": { "role": "neutral", "displayName": "Hairline", "canonical": "#d4d4cc", "tonalRamp": ["#1d1d1a", "#35352f", "#50504a", "#6d6d66", "#8e8e86", "#b1b1a9", "#d4d4cc", "#f3f3ef"] },
+      "rule-strong": { "role": "neutral", "displayName": "Rule Black", "canonical": "#141414", "tonalRamp": ["#141414", "#2b2b2b", "#454545", "#626262", "#828282", "#a6a6a6", "#cccccc", "#f2f2f2"] },
+      "guide-yellow": { "role": "primary", "displayName": "Guide Yellow", "canonical": "#f2c200", "tonalRamp": ["#2e2400", "#4d3d00", "#705a00", "#977a00", "#c29d00", "#f2c200", "#f9dd6b", "#fdf3c7"] },
+      "conflict": { "role": "secondary", "displayName": "Conflict Red", "canonical": "#b30f29", "tonalRamp": ["#2e0309", "#560713", "#7f0b1d", "#b30f29", "#d9384f", "#e8768a", "#f3b4be", "#fbecee"] },
+      "conflict-bg": { "role": "secondary", "displayName": "Conflict Tint", "canonical": "#fbecee", "tonalRamp": ["#2e0309", "#560713", "#7f0b1d", "#b30f29", "#d9384f", "#e8768a", "#f3b4be", "#fbecee"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page title (the open build's name or \"New build\"); condensed extrabold uppercase, 2.25rem on phones, 3rem from 640px." },
+      "total": { "displayName": "Total", "purpose": "The estimated total in the yellow band; the largest figure on the page. 1.875rem in the pinned phone bar." },
+      "headline": { "displayName": "Headline", "purpose": "Section heads outside the main tables, e.g. My Builds." },
+      "title": { "displayName": "Title", "purpose": "Table and sheet heads, saved-build card names, the masthead wordmark." },
+      "category": { "displayName": "Category", "purpose": "Category name at the start of each part row." },
+      "figure": { "displayName": "Figure", "purpose": "Median price in each part row; tabular, right-aligned." },
+      "body": { "displayName": "Body", "purpose": "Banners, intro, status lines, sheet line items, dropdown options." },
+      "picker": { "displayName": "Picker", "purpose": "A picked part's full name inside its search box." },
+      "spec": { "displayName": "Spec", "purpose": "Muted spec line under a part; conflict reasons at 600 in red." },
+      "label": { "displayName": "Label", "purpose": "Column heads, sheet category labels, field labels, \"Estimated total\". Never an eyebrow above a heading." },
+      "note-marker": { "displayName": "Note marker", "purpose": "Superscript footnote number in a fixed 12px slot after a price." }
+    },
+    "shadows": [
+      { "name": "dropdown-lift", "value": "0 12px 28px -8px rgb(20 20 20 / 0.35)", "purpose": "The open part-search listbox only. Nothing else casts a shadow." }
+    ],
+    "motion": [
+      { "name": "total-count-up", "value": "700ms, exponential ease-out (1 - 2^(-10t)) via requestAnimationFrame", "purpose": "The build total rolls from its previous value as each price lands. Jumps straight to the value under prefers-reduced-motion." },
+      { "name": "pinned-bar-slide", "value": "transform 200ms ease-out", "purpose": "The phone total bar slides off while the sheet's own total band is visible. No transition under reduced motion." },
+      { "name": "control-color", "value": "color/background transition, 150ms default", "purpose": "Button hover fills." },
+      { "name": "skeleton-pulse", "value": "Tailwind animate-pulse on pressed-paper blocks", "purpose": "Loading prices and loading saved builds." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px", "note": "Wider side padding, larger title and wordmark." },
+      { "name": "md", "value": "768px", "note": "Parts table switches to the shared four-column grid; masthead tag shows; card grid goes to 2 columns." },
+      { "name": "lg", "value": "1024px", "note": "Two-column layout with the sticky 400px valuation sheet; pinned phone total bar hidden." },
+      { "name": "xl", "value": "1280px", "note": "40px column gap; card grid goes to 3 columns." }
+    ],
+    "borders": [
+      { "name": "frame", "value": "2px solid #141414", "purpose": "Major containers: masthead bottom, parts table, valuation sheet, total band, My Builds heading rule, open saved build." },
+      { "name": "control", "value": "1.5px solid #141414", "purpose": "Buttons, fields, picker, dropdown, banner, inner section dividers." },
+      { "name": "hairline", "value": "1px solid #d4d4cc", "purpose": "Row dividers in the parts table and dropdown." },
+      { "name": "dotted", "value": "1px dotted #d4d4cc", "purpose": "Line items in the valuation sheet and saved-build cards." }
+    ],
+    "focus": { "value": "outline: 2px solid #141414; outline-offset: 2px", "purpose": "Every interactive element." }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink-filled square button for the one main action in a group (Save, Load, confirm Delete).",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Save Changes</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px; border: 1.5px solid var(--color-ink, #141414); border-radius: 0; font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-btn-primary { background: var(--color-ink, #141414); color: var(--color-paper, #ffffff); } .ds-btn-primary:hover { background: var(--color-ink-2, #3b3b37); } .ds-btn:focus-visible { outline: 2px solid var(--color-ink, #141414); outline-offset: 2px; } .ds-btn:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White outlined square button for the other actions (Save as New, Reset, Rename, Copy Link, Cancel).",
+      "html": "<button class=\"ds-btn-secondary\">Reset</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 16px; border: 1.5px solid var(--color-ink, #141414); border-radius: 0; background: var(--color-paper, #ffffff); color: var(--color-ink, #141414); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background-color 150ms; } .ds-btn-secondary:hover { background: var(--color-paper-2, #eceef0); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-ink, #141414); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Square white field with an ink border; the build-name box and rename input.",
+      "html": "<label class=\"ds-label\" for=\"ds-name\">Build name</label><input id=\"ds-name\" class=\"ds-field\" placeholder=\"Untitled build\" value=\"Budget AM5 build\">",
+      "css": ".ds-label { display: block; margin-bottom: 8px; font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted, #5b5b55); } .ds-field { height: 40px; width: 100%; padding: 0 12px; border: 1.5px solid var(--color-ink, #141414); border-radius: 0; background: var(--color-paper, #ffffff); color: var(--color-ink, #141414); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; outline: none; } .ds-field::placeholder { color: var(--color-faint, #6b6b64); } .ds-field:focus-visible { outline: 2px solid var(--color-ink, #141414); outline-offset: 2px; }"
+    },
+    {
+      "name": "Masthead",
+      "kind": "nav",
+      "refersTo": "masthead",
+      "description": "Guide-yellow band with the condensed wordmark, the market tag and two plain links.",
+      "html": "<header class=\"ds-mast\"><a class=\"ds-mast-mark\" href=\"#\">PC Price Estimator</a><span class=\"ds-mast-tag\">eBay.ca market values, CAD</span><nav class=\"ds-mast-nav\"><a href=\"#\">New build</a><a href=\"#\">My Builds</a></nav></header>",
+      "css": ".ds-mast { display: flex; align-items: center; gap: 16px; height: 64px; padding: 0 24px; background: var(--color-guide, #f2c200); border-bottom: 2px solid var(--color-ink, #141414); color: var(--color-ink, #141414); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; } .ds-mast-mark { font-size: 1.75rem; font-weight: 800; font-stretch: 75%; text-transform: uppercase; letter-spacing: 0.025em; line-height: 1; color: inherit; text-decoration: none; white-space: nowrap; } .ds-mast-tag { border: 1.5px solid var(--color-ink, #141414); padding: 2px 8px; font-size: 0.75rem; font-weight: 600; } .ds-mast-nav { margin-left: auto; display: flex; gap: 20px; font-size: 0.875rem; font-weight: 600; } .ds-mast-nav a { color: inherit; text-decoration: none; text-underline-offset: 4px; } .ds-mast-nav a:hover { text-decoration: underline; } .ds-mast a:focus-visible { outline: 2px solid var(--color-ink, #141414); outline-offset: 2px; }"
+    },
+    {
+      "name": "Part Row",
+      "kind": "custom",
+      "refersTo": "part-row",
+      "description": "One category in the ruled parts table: condensed category, picked part with specs, listings and a tabular median with a fixed footnote slot. The second row shows the conflict state.",
+      "html": "<div class=\"ds-table\"><section class=\"ds-row\"><h3 class=\"ds-cat\">CPU</h3><div><div class=\"ds-pick\"><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"8.5\" cy=\"8.5\" r=\"5\"/><path d=\"m12.5 12.5 4 4\"/></svg>AMD Ryzen 7 9800X3D</div><p class=\"ds-spec\">AM5 · 8 cores</p></div><span class=\"ds-num\">12</span><span class=\"ds-price\">$767.20<sup class=\"ds-note\"></sup></span></section><section class=\"ds-row ds-row-conflict\"><h3 class=\"ds-cat\">Motherboard</h3><div><div class=\"ds-pick\"><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\"><circle cx=\"8.5\" cy=\"8.5\" r=\"5\"/><path d=\"m12.5 12.5 4 4\"/></svg>Biostar B650MS2</div><p class=\"ds-spec\">AM5 · Micro ATX · 2x DDR5 slots</p><p class=\"ds-issue\"><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 3 2.5 16.5h15Z\"/><path d=\"M10 8.5v3.5M10 14.4v.1\"/></svg>Conflicts with the RAM (see above)</p></div><span class=\"ds-num ds-faint\">—</span><span class=\"ds-price ds-na\">n/a<sup class=\"ds-note\">1</sup></span></section></div>",
+      "css": ".ds-table { border: 2px solid var(--color-ink, #141414); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--color-ink, #141414); } .ds-row { display: grid; grid-template-columns: 8.5rem minmax(0,1fr) 5.5rem 8rem; column-gap: 16px; align-items: start; padding: 16px 20px; background: var(--color-paper, #ffffff); border-bottom: 1px solid var(--color-rule, #d4d4cc); } .ds-row:last-child { border-bottom: 0; } .ds-row-conflict { background: var(--color-conflict-bg, #fbecee); } .ds-cat { margin: 0; padding-top: 8px; font-size: 1.125rem; font-weight: 800; font-stretch: 75%; text-transform: uppercase; } .ds-pick { display: flex; gap: 10px; align-items: center; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--color-ink, #141414); background: var(--color-paper, #ffffff); font-size: 0.9375rem; font-weight: 600; } .ds-pick svg { color: var(--color-muted, #5b5b55); flex-shrink: 0; } .ds-spec { margin: 6px 0 0; font-size: 0.8125rem; color: var(--color-muted, #5b5b55); } .ds-issue { display: flex; gap: 6px; margin: 6px 0 0; font-size: 0.8125rem; font-weight: 600; color: var(--color-conflict, #b30f29); } .ds-num { padding-top: 10px; text-align: right; font-size: 0.9375rem; color: var(--color-ink-2, #3b3b37); } .ds-faint { color: var(--color-faint, #6b6b64); } .ds-price { padding-top: 8px; text-align: right; font-size: 1.125rem; font-weight: 700; white-space: nowrap; } .ds-na { font-size: 0.875rem; font-weight: 600; color: var(--color-muted, #5b5b55); } .ds-note { display: inline-block; width: 12px; text-align: left; font-size: 0.6875rem; font-weight: 700; }"
+    },
+    {
+      "name": "Valuation Sheet",
+      "kind": "card",
+      "refersTo": "valuation-sheet",
+      "description": "The sticky receipt: dotted line items, the guide-yellow total band, numbered footnotes and the compatibility box.",
+      "html": "<aside class=\"ds-sheet\"><div class=\"ds-sheet-head\"><h2>Budget AM5 build</h2><span>6 of 7 parts</span></div><ul class=\"ds-lines\"><li><span class=\"ds-lbl\">CPU</span><span>AMD Ryzen 7 9800X3D</span><b>$767.20<sup class=\"ds-n\"></sup></b></li><li><span class=\"ds-lbl\">Motherboard</span><span>Biostar B650MS2</span><b class=\"ds-mut\">n/a<sup class=\"ds-n\">1</sup></b></li><li><span class=\"ds-lbl\">Cooler</span><span class=\"ds-faint\">Not picked</span><b class=\"ds-faint\">—<sup class=\"ds-n\"></sup></b></li></ul><div class=\"ds-total\"><span>Estimated total</span><strong>$2,960.90</strong></div><ol class=\"ds-notes\"><li><b>1</b> Motherboard: no usable eBay listings, so it's left out of the total.</li></ol><div class=\"ds-conflict\" role=\"alert\"><p><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M10 3 2.5 16.5h15Z\"/><path d=\"M10 8.5v3.5M10 14.4v.1\"/></svg>1 compatibility issue</p><ul><li>DDR4 RAM won't fit this motherboard, which takes DDR5</li></ul></div></aside>",
+      "css": ".ds-sheet { width: 400px; border: 2px solid var(--color-ink, #141414); background: var(--color-paper, #ffffff); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--color-ink, #141414); } .ds-sheet-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 20px; border-bottom: 1.5px solid var(--color-ink, #141414); } .ds-sheet-head h2 { margin: 0; font-size: 1.25rem; font-weight: 800; font-stretch: 75%; text-transform: uppercase; } .ds-sheet-head span { font-size: 0.75rem; font-weight: 600; color: var(--color-muted, #5b5b55); } .ds-lines { list-style: none; margin: 0; padding: 4px 20px; font-size: 0.875rem; } .ds-lines li { display: grid; grid-template-columns: 6.75rem minmax(0,1fr) auto; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px dotted var(--color-rule, #d4d4cc); } .ds-lines li:last-child { border-bottom: 0; } .ds-lines b { text-align: right; font-weight: 600; white-space: nowrap; } .ds-lbl { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted, #5b5b55); } .ds-mut { color: var(--color-muted, #5b5b55); } .ds-faint { color: var(--color-faint, #6b6b64); } .ds-n { display: inline-block; width: 12px; text-align: left; font-size: 0.6875rem; font-weight: 700; } .ds-total { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 20px; background: var(--color-guide, #f2c200); border-top: 2px solid var(--color-ink, #141414); border-bottom: 2px solid var(--color-ink, #141414); } .ds-total span { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; } .ds-total strong { font-size: 2.75rem; font-weight: 800; font-stretch: 75%; letter-spacing: -0.025em; line-height: 1; } .ds-notes { list-style: none; margin: 0; padding: 12px 20px 16px; font-size: 0.75rem; line-height: 1.6; color: var(--color-ink-2, #3b3b37); } .ds-notes b { margin-right: 6px; } .ds-conflict { margin: 0 20px 16px; padding: 10px 12px; border: 1.5px solid var(--color-conflict, #b30f29); background: var(--color-conflict-bg, #fbecee); color: var(--color-conflict, #b30f29); font-size: 0.875rem; } .ds-conflict p { display: flex; gap: 6px; align-items: center; margin: 0; font-weight: 700; } .ds-conflict ul { margin: 4px 0 0; padding-left: 22px; list-style: none; }"
+    },
+    {
+      "name": "Dropdown Option List",
+      "kind": "custom",
+      "refersTo": "part-picker",
+      "description": "The open part-search listbox: the only lifted surface. Incompatible options keep the conflict tint and stay clickable.",
+      "html": "<ul class=\"ds-list\" role=\"listbox\"><li class=\"ds-opt ds-opt-active\"><span class=\"ds-opt-name\">Corsair Vengeance 32 GB (DDR5-6000, 2 x 16GB)</span><span class=\"ds-opt-spec\">DDR5-6000 · 2 x 16GB</span></li><li class=\"ds-opt ds-opt-bad\"><span class=\"ds-opt-name\">Corsair Vengeance LPX 32 GB (DDR4-2666, 4 x 8GB)</span><span class=\"ds-opt-spec\">DDR4-2666 · 4 x 8GB</span><span class=\"ds-opt-issue\">DDR4 RAM won't fit this motherboard, which takes DDR5</span></li><li class=\"ds-list-foot\">Showing 50 of 8,081. Type to narrow down.</li></ul>",
+      "css": ".ds-list { list-style: none; margin: 0; padding: 0; max-height: 384px; overflow-y: auto; border: 1.5px solid var(--color-ink, #141414); background: var(--color-paper, #ffffff); box-shadow: 0 12px 28px -8px rgb(20 20 20 / 0.35); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; } .ds-opt { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-bottom: 1px solid var(--color-rule, #d4d4cc); cursor: pointer; } .ds-opt:hover, .ds-opt-active { background: var(--color-paper-2, #eceef0); } .ds-opt-bad { background: var(--color-conflict-bg, #fbecee); } .ds-opt-bad:hover { background: #f5dde1; } .ds-opt-name { font-size: 0.875rem; font-weight: 600; color: var(--color-ink, #141414); } .ds-opt-bad .ds-opt-name { color: var(--color-ink-2, #3b3b37); } .ds-opt-spec { font-size: 0.75rem; color: var(--color-muted, #5b5b55); } .ds-opt-issue { font-size: 0.75rem; font-weight: 600; color: var(--color-conflict, #b30f29); } .ds-list-foot { position: sticky; bottom: 0; padding: 8px 12px; border-top: 1.5px solid var(--color-ink, #141414); background: var(--color-paper, #ffffff); font-size: 0.75rem; font-weight: 600; color: var(--color-ink-2, #3b3b37); }"
+    },
+    {
+      "name": "Saved Build Card",
+      "kind": "card",
+      "refersTo": "saved-build-card",
+      "description": "A My Builds entry: condensed name, dotted part list, cached total, small buttons.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-card-head\"><h3>Intel 1440p option</h3><p>Saved Oct 18, 2026, 6:35 p.m.</p></div><ul class=\"ds-card-parts\"><li><span>CPU</span><span>Intel Core i5-12600KF</span></li><li><span>PSU</span><span>Corsair RM850x (2024)</span></li></ul><div class=\"ds-card-total\"><span>Total, cached prices</span><strong>$2,143.67</strong></div><div class=\"ds-card-actions\"><button class=\"ds-sm ds-sm-primary\">Load</button><button class=\"ds-sm\">Rename</button><button class=\"ds-sm\">Copy Link</button><button class=\"ds-sm ds-sm-text\">Delete</button></div></article>",
+      "css": ".ds-card { display: flex; flex-direction: column; width: 380px; border: 1.5px solid var(--color-rule, #d4d4cc); background: var(--color-paper, #ffffff); font-family: Archivo, ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--color-ink, #141414); } .ds-card-head { padding: 12px 16px 10px; border-bottom: 1px solid var(--color-rule, #d4d4cc); } .ds-card-head h3 { margin: 0; font-size: 1.25rem; font-weight: 800; font-stretch: 75%; text-transform: uppercase; } .ds-card-head p { margin: 2px 0 0; font-size: 0.75rem; color: var(--color-muted, #5b5b55); } .ds-card-parts { list-style: none; margin: 0; padding: 6px 16px; font-size: 0.75rem; } .ds-card-parts li { display: grid; grid-template-columns: 6.75rem minmax(0,1fr); gap: 8px; padding: 6px 0; border-bottom: 1px dotted var(--color-rule, #d4d4cc); } .ds-card-parts li:last-child { border-bottom: 0; } .ds-card-parts li span:first-child { font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--color-muted, #5b5b55); } .ds-card-total { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 16px; border-top: 1.5px solid var(--color-ink, #141414); } .ds-card-total span { font-size: 0.75rem; color: var(--color-ink-2, #3b3b37); } .ds-card-total strong { font-size: 1.5rem; font-weight: 800; font-stretch: 75%; line-height: 1; } .ds-card-actions { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--color-rule, #d4d4cc); } .ds-sm { height: 32px; padding: 0 10px; border: 1.5px solid var(--color-ink, #141414); border-radius: 0; background: var(--color-paper, #ffffff); color: var(--color-ink, #141414); font: 600 0.75rem Archivo, ui-sans-serif, sans-serif; cursor: pointer; } .ds-sm:hover { background: var(--color-paper-2, #eceef0); } .ds-sm:focus-visible { outline: 2px solid var(--color-ink, #141414); outline-offset: 2px; } .ds-sm-primary { background: var(--color-ink, #141414); color: var(--color-paper, #ffffff); } .ds-sm-primary:hover { background: var(--color-ink-2, #3b3b37); } .ds-sm-text { margin-left: auto; border-color: transparent; text-decoration: underline; text-underline-offset: 2px; } .ds-sm-text:hover { border-color: var(--color-ink, #141414); text-decoration: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Price Guide",
+    "overview": "The app reads like a collector's printed price guide for used PC parts: ruled tables of market evidence, an honest footnote wherever a figure is thin, and one valuation total that matters more than anything else on the page. It is a light, paper-and-ink world built for a desk where bright eBay and Marketplace tabs sit alongside it, so nothing glows and nothing is dark. Density is moderate and tabular: every category gets the same row anatomy, and the price always lands in the same column.\n\nHierarchy comes from rule weight, condensed uppercase type and one reserved ink, not from cards, color fills or shadows. Black rules frame the major containers, grey hairlines separate rows, and corners are square everywhere. Guide yellow marks only the masthead and the total. Red only ever means a compatibility conflict. Price caveats are numbered footnotes, never colored badges.\n\nThe world rejects gamer and RGB styling and the generic SaaS dashboard look (a card per part with a brand-blue sidebar summary).",
+    "keyCharacteristics": [
+      "Light cool-grey ground, white tables, near-black ink and rules.",
+      "One typeface (Archivo) on a variable width axis: condensed extrabold uppercase for headings, category names and totals, normal width for everything else.",
+      "Tabular figures everywhere, right-aligned into one decimal-aligned price column.",
+      "Guide yellow reserved for the masthead and the total band.",
+      "Square corners; flat surfaces; one soft shadow, on the open dropdown only.",
+      "A total that rolls up as each price lands."
+    ],
+    "rules": [
+      { "name": "The Reserved Yellow Rule", "body": "Guide yellow appears on the masthead and the total band, and nowhere else. No yellow buttons, highlights, badges or hover states. If a new surface needs emphasis, use rule weight or condensed type.", "section": "colors" },
+      { "name": "The Red Means Conflict Rule", "body": "Conflict red and its tint are used only for part compatibility problems. Price caveats, unsaved changes, errors and destructive actions do not borrow it.", "section": "colors" },
+      { "name": "The Condensed Voice Rule", "body": "Condensed uppercase extrabold is for headings, category names and totals. Part names, specs, prose and buttons stay at normal width and in sentence or title case.", "section": "typography" },
+      { "name": "The One Column Rule", "body": "Every figure is tabular (set on the body) and right-aligned. Each price is followed by a fixed 12px footnote slot, empty or not, so decimals line up down the parts table, the valuation sheet and the saved-build totals.", "section": "typography" },
+      { "name": "The Flat Except Open Rule", "body": "Surfaces never carry a shadow at rest or on hover. Only a temporarily open overlay may lift.", "section": "elevation" },
+      { "name": "The Rule Weight Rule", "body": "2px ink frames the major containers (masthead bottom edge, the parts table, the valuation sheet, the total band, the My Builds heading rule, the open saved build). 1.5px ink draws controls and inner section dividers. 1px grey hairlines separate rows; dotted hairlines separate line items in the sheet and on cards.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep guide yellow to the masthead and the total band (The Reserved Yellow Rule).",
+      "Do use conflict red and its tint only for compatibility, and keep incompatible options clickable with the reason shown.",
+      "Do put price caveats in numbered footnotes with matching superscript markers after the price, not in badges or colors.",
+      "Do right-align every price with tabular figures and a fixed 12px marker slot, so one decimal column runs down each table.",
+      "Do give every category row the same anatomy, with the price in the same column.",
+      "Do separate with rules: 2px ink for containers, 1.5px ink for controls and inner dividers, 1px grey hairlines for rows, dotted lines for line items.",
+      "Do keep the pinned total on phones and stack rows rather than shrinking the table.",
+      "Do respect reduced motion: the total jumps instead of rolling and the phone bar stops sliding.",
+      "Do show focus as a 2px ink outline offset 2px on every interactive element."
+    ],
+    "donts": [
+      "Don't round corners or add shadows to resting surfaces; the dropdown lift is the only shadow.",
+      "Don't use yellow or red outside their reserved roles, as accents, hover colors or general status colors.",
+      "Don't use condensed uppercase for part names, prose or buttons.",
+      "Don't set small uppercase labels above headings as eyebrows; that voice labels columns, fields and sheet lines only.",
+      "Don't introduce a second typeface, a dark theme panel, gradients or glow.",
+      "Don't add a card per part or a colored dashboard sidebar."
+    ]
+  }
+}

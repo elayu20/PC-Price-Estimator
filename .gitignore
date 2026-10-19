@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# impeccable local state (screenshots, mocks, logs, caches)
+/.impeccable/config.local.json
+/.impeccable/hook.cache.json
+/.impeccable/questions/
+/.impeccable/review/
+/.impeccable/mocks/
