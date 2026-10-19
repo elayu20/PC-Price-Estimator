@@ -7,18 +7,27 @@ export default function BuildControls({ name, onNameChange, canUpdate, isShared,
     else if (isShared) saveLabel = "Save a Copy";
 
     return (
-        <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+        <form
+            className="flex flex-col gap-2"
+            onSubmit={(e) => { e.preventDefault(); onSave(); }}
+        >
+            <label className="text-[0.6875rem] font-bold tracking-wider text-muted uppercase" htmlFor="build-name">Build name</label>
             <input
+                id="build-name"
                 type="text"
-                placeholder="Build name"
+                placeholder="Untitled build"
                 value={name}
                 maxLength={80}
                 onChange={(e) => onNameChange(e.target.value)}
-                style={{ padding: "6px", minWidth: 220 }}
+                className="field w-full"
             />
-            <button onClick={onSave} disabled={saving}>{saveLabel}</button>
-            {canUpdate && <button onClick={onSaveAsNew} disabled={saving}>Save as New</button>}
-            <button onClick={onReset} disabled={saving}>Reset</button>
-        </div>
+            <div className="mt-1 flex flex-wrap gap-2">
+                <button type="submit" disabled={saving} className="btn btn-primary flex-1">
+                    {saving ? "Saving..." : saveLabel}
+                </button>
+                {canUpdate && <button type="button" onClick={onSaveAsNew} disabled={saving} className="btn">Save as New</button>}
+                <button type="button" onClick={onReset} disabled={saving} className="btn">Reset</button>
+            </div>
+        </form>
     );
 }
