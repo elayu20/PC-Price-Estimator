@@ -3,6 +3,7 @@ import { prisma } from "../../../../utils/prisma";
 import { searchEbay, ebayCategoryId } from "../../../../utils/ebay";
 import { estimatePrice, fallbackQueries, MIN_LISTINGS } from "../../../../utils/pricing";
 import { rateLimit, clientIp } from "../../../../utils/rateLimit";
+import { DB_CATEGORIES } from "../../../../utils/categories";
 
 // Cached prices are reused for this long before eBay is asked again
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
@@ -13,17 +14,6 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 // room for normal use but not for scraping
 const EBAY_LOOKUPS_PER_WINDOW = 30;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-
-// Frontend category keys -> DB `Part.category` values
-const DB_CATEGORIES = {
-    cpu: "CPU",
-    gpu: "GPU",
-    ram: "RAM",
-    motherboard: "Motherboard",
-    storage: "Storage",
-    psu: "PSU",
-    cooler: "Cooler",
-};
 
 // eBay lookups currently running, by part id. A second request for the same
 // part waits for the first instead of searching eBay again
