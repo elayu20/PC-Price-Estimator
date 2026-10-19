@@ -1,0 +1,406 @@
+"use client"
+import { useEffect, useState, useMemo, useRef } from "react"
+import PartSelect from "./PartSelect";
+import BuildControls from "./BuildControls";
+import SavedBuilds from "./SavedBuilds";
+import { checkCompatibility } from "../utils/compatibility";
+import { createBuild, deleteBuild, editToken, fetchBuild, fetchMyBuilds, updateBuild } from "../utils/buildStorage";
+
+// Every part category, in display order. `key` matches the /api/parts catalog
+// keys and the saved-build keys
+const CATEGORIES = [
+  { key: "cpu", label: "CPU" },
+  { key: "gpu", label: "GPU" },
+  { key: "ram", label: "RAM" },
+  { key: "motherboard", label: "Motherboard" },
+  { key: "storage", label: "Storage" },
+  { key: "psu", label: "PSU" },
+  { key: "cooler", label: "Cooler" },
+];
+
+// Builds an object with one entry per category, all set to `value`
+function perCategory(value) {
+  return Object.fromEntries(CATEGORIES.map(({ key }) => [key, value]));
+}
+
+// Selected part names only, e.g. { cpu: "...", ram: "..." }
+function selectedParts(build) {
+  return Object.fromEntries(Object.entries(build).filter(([, name]) => name));
+}
+
+// Shows the address of the open build (or "/") without a navigation, so the
+// picker state isn't reset
+function showUrl(path) {
+  if (window.location.pathname !== path) window.history.replaceState(null, "", path);
+}
+
+// The part picker. `buildId` (from /build/<id>) opens that saved build on load
+export default function Builder({ buildId }) {
+  // For ram options dropdown
+  const [ramSticks, setRamSticks] = useState("");
+  const [ramGen, setRamGen] = useState("");
+  const [ramCap, setRamCap] = useState("");
+
+  // Selected part name per category ("" = nothing selected)
+  const [build, setBuild] = useState(() => perCategory(""));
+  // Part names and specs from the DB, grouped by category
+  const [catalog, setCatalog] = useState(null);
+  // Live eBay price per category (null = nothing selected, still loading, or unavailable)
+  const [livePrices, setLivePrices] = useState(() => perCategory(null));
+
+  // Tracks, per part, whether we tried to fetch a live price and failed
+  // (either the API call errored, or eBay had no usable listings)
+  // This is what lets us show "Price unavailable" instead of silently
+  // showing a made-up number
+  const [priceErrors, setPriceErrors] = useState(() => perCategory(false));
+
+  // The part name most recently requested per category. A price response is
+  // only applied if it's still for this part, so a slow response for an old
+  // pick can't overwrite the price of the current one
+  const latestPriceRequest = useRef({});
+
+  // The saved build open in the picker: { id, name, parts, owned }, or null for
+  // an unsaved one. `owned` = this browser created it and can overwrite it.
+  // Anyone else's Save makes a copy, so a share link never changes for others
+  const [openBuild, setOpenBuild] = useState(null);
+  const [buildName, setBuildName] = useState("");
+  // This browser's saved builds (null = loading) and the error loading them
+  const [myBuilds, setMyBuilds] = useState(null);
+  const [myBuildsError, setMyBuildsError] = useState(null);
+  // Result of the last save/load/delete, e.g. "Saved." or an error
+  const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+  // Id of the build last opened, so the /build/<id> effect doesn't reopen it
+  const openedId = useRef(null);
+
+  // Fetch the part catalog from the DB
+  useEffect(() => {
+    // This runs once when the page first loads
+    fetch("/api/parts")
+      .then((res) => res.json())
+      .then((data) => {
+        setCatalog(data);
+      })
+      .catch((err) => {
+        console.error("Failed to load parts catalog", err);
+      })
+  }, [])
+
+  // Load the "My builds" list
+  useEffect(() => {
+    refreshMyBuilds();
+  }, [])
+
+  // Open the build from the share link
+  useEffect(() => {
+    if (!buildId || openedId.current === buildId) return;
+    openedId.current = buildId;
+
+    fetchBuild(buildId)
+      .then((b) => {
+        if (b) showBuild(b);
+        else setStatus("That build doesn't exist (it may have been deleted).");
+      })
+      .catch((err) => setStatus(`Couldn't load build: ${err.message}`));
+    // Only a new link id should reopen anything, not a new showBuild each render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildId])
+
+  // Filter logic for RAM
+  const filteredRamOptions = useMemo(() => {
+    if (!catalog?.ram) return {};
+
+    return Object.fromEntries(
+      Object.entries(catalog.ram).filter(([name, data]) => {
+        const specs = data.specs;
+
+        // If a filter is selected, the part MUST match it
+        // If no filter is selected (empty string), we ignore that check
+        const matchesSticks = ramSticks === "" || Number(specs.stickCount) === Number(ramSticks);
+        const matchesGen = ramGen === "" || specs.generation === ramGen;
+        const matchesCap = ramCap === "" || String(specs.capacityGb) === ramCap;
+
+        return matchesSticks && matchesGen && matchesCap;
+      })
+    );
+  }, [catalog?.ram, ramSticks, ramGen, ramCap]);
+
+  // Specs of each selected part (undefined = nothing selected)
+  const selectedSpecs = useMemo(() => Object.fromEntries(
+    CATEGORIES.map(({ key }) => [key, catalog?.[key]?.[build[key]]?.specs])
+  ), [catalog, build]);
+
+  // Conflicts between the selected parts
+  const compatibilityIssues = useMemo(() => checkCompatibility(selectedSpecs), [selectedSpecs]);
+
+  // Messages for the conflicts a dropdown option would cause with the rest of
+  // the build if it were picked in category `key`
+  function optionIssues(key, specs) {
+    return checkCompatibility({ ...selectedSpecs, [key]: specs })
+      .filter(({ parts }) => parts.includes(key))
+      .map(({ message }) => message);
+  }
+
+  // livePrices only ever holds a real (> 0) eBay price or null, so missing counts as 0
+  const total = CATEGORIES.reduce((sum, { key }) => sum + (livePrices[key] ?? 0), 0);
+
+  // Parts left out of the total because eBay had no price for them
+  const unpricedCount = Object.values(priceErrors).filter(Boolean).length;
+
+  // Selects a part in one category and fetches its live price
+  function selectPart(partType, partName) {
+    setBuild(prev => ({ ...prev, [partType]: partName }));
+    fetchLivePrice(partType, partName);
+  }
+
+  // Apply a saved (or empty) build to state
+  function applyBuildToState(b) {
+    // Empty categories just get cleared, so no part or price from the
+    // previous build is left behind
+    CATEGORIES.forEach(({ key }) => selectPart(key, b[key] ?? ""));
+  }
+
+  // True when the picker or name differ from the open build as last saved
+  const hasUnsavedChanges = openBuild !== null && (
+    buildName.trim() !== openBuild.name ||
+    CATEGORIES.some(({ key }) => (openBuild.parts[key] ?? "") !== build[key])
+  );
+
+  function refreshMyBuilds() {
+    fetchMyBuilds()
+      .then((builds) => {
+        setMyBuilds(builds);
+        setMyBuildsError(null);
+      })
+      .catch((err) => setMyBuildsError(err.message));
+  }
+
+  // Puts a saved build into the picker and the address bar
+  function showBuild(b) {
+    openedId.current = b.id;
+    setOpenBuild({ ...b, owned: Boolean(editToken(b.id)) });
+    setBuildName(b.name);
+    applyBuildToState(b.parts);
+    showUrl(`/build/${b.id}`);
+    setStatus("");
+  }
+
+  // Saves the picker: overwrites the open build if this browser owns it,
+  // otherwise (or with asNew) creates a new build and opens that
+  async function save(asNew) {
+    const parts = selectedParts(build);
+    if (Object.keys(parts).length === 0) {
+      setStatus("Pick at least one part before saving.");
+      return;
+    }
+    const name = buildName.trim() || "Untitled build";
+
+    setSaving(true);
+    try {
+      const saved = openBuild?.owned && !asNew
+        ? await updateBuild(openBuild.id, { name, parts })
+        : await createBuild(name, parts);
+      openedId.current = saved.id;
+      setOpenBuild({ ...saved, owned: true });
+      setBuildName(saved.name);
+      showUrl(`/build/${saved.id}`);
+      setStatus("Saved.");
+      refreshMyBuilds();
+    } catch (err) {
+      setStatus(`Couldn't save: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleReset() {
+    // All fields become "", which also clears their prices and errors
+    applyBuildToState({});
+    openedId.current = null;
+    setOpenBuild(null);
+    setBuildName("");
+    setStatus("");
+    showUrl("/");
+  }
+
+  // Returns true if the rename worked, so the list can close its name box
+  async function handleRename(id, name) {
+    try {
+      const saved = await updateBuild(id, { name });
+      if (openBuild?.id === id) {
+        setOpenBuild(prev => ({ ...prev, name: saved.name, updatedAt: saved.updatedAt }));
+        setBuildName(saved.name);
+      }
+      refreshMyBuilds();
+      return true;
+    } catch (err) {
+      setStatus(`Couldn't rename: ${err.message}`);
+      return false;
+    }
+  }
+
+  async function handleDelete(id) {
+    try {
+      await deleteBuild(id);
+      // The picked parts stay, they just aren't a saved build any more
+      if (openBuild?.id === id) {
+        openedId.current = null;
+        setOpenBuild(null);
+        showUrl("/");
+      }
+      refreshMyBuilds();
+    } catch (err) {
+      setStatus(`Couldn't delete: ${err.message}`);
+    }
+  }
+
+  // Fetches the live eBay price for one part and saves it to state
+  async function fetchLivePrice(partType, partName) {
+    latestPriceRequest.current[partType] = partName;
+
+    // Clear the old price right away so it isn't shown next to the new part
+    setLivePrices(prev => ({ ...prev, [partType]: null }));
+    setPriceErrors(prev => ({ ...prev, [partType]: false }));
+
+    // Nothing selected (e.g. the user is typing a new search), nothing to fetch
+    if (!partName) return;
+
+    // True if the user has picked something else since this request started
+    const isStale = () => latestPriceRequest.current[partType] !== partName;
+
+    try {
+      const params = new URLSearchParams({ category: partType, part: partName });
+      const response = await fetch(`/api/price?${params}`);
+
+      if (!response.ok) throw new Error("API failed");
+
+      const data = await response.json();
+      if (isStale()) return;
+
+      // priceCad > 0 means we got a real median from eBay listings
+      // priceCad === 0 means the API found no usable listings - treat that
+      // as a failure to fetch a price, not a real $0 price
+      if (data.priceCad && data.priceCad > 0) {
+        setLivePrices(prev => ({ ...prev, [partType]: data.priceCad }));
+      } else {
+        setPriceErrors(prev => ({ ...prev, [partType]: true }));
+      }
+    } catch (error) {
+        if (isStale()) return;
+        console.error(`Failed to fetch live price for ${partName}`, error);
+        // Network/API failure - mark as unavailable rather than leaving
+        // a stale or misleading price on screen
+        setPriceErrors(prev => ({ ...prev, [partType]: true }));
+    }
+  }
+
+  // If the catalog hasn't loaded yet, show something instead of a blank page
+  if (!catalog) {
+    return <p>Loading parts...</p>
+  }
+
+  return (
+      <main>
+        <h1>PC Price Estimator</h1>
+
+        {openBuild && (
+          <div style={{ marginBottom: "16px", padding: "12px", border: "1px solid #b0c4e8", borderRadius: "8px", backgroundColor: "#f0f5fd" }}>
+            {openBuild.owned ? (
+              <>Editing your build <strong>{openBuild.name}</strong>{hasUnsavedChanges && " (unsaved changes)"}</>
+            ) : (
+              <>
+                Viewing shared build <strong>{openBuild.name}</strong>. You can change parts freely;
+                saving makes a copy in your builds and leaves the original as is.
+              </>
+            )}
+          </div>
+        )}
+
+        {CATEGORIES.map(({ key, label }) => {
+          const select = (
+            <PartSelect
+              label={label}
+              value={build[key]}
+              onChange={(val) => selectPart(key, val)}
+              options={key === "ram" ? filteredRamOptions : catalog[key]}
+              getIssues={(specs) => optionIssues(key, specs)}
+            />
+          );
+
+          if (key !== "ram") {
+            return <div key={key} style={{ marginBottom: "12px" }}>{select}</div>;
+          }
+
+          // RAM gets mini filters above its dropdown
+          return (
+            <div key={key} style={{ marginBottom: "12px", border: "1px solid #ddd", padding: "12px", borderRadius: "8px" }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
+                <select value={ramSticks} onChange={(e) => setRamSticks(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+                  <option value="">Any Sticks</option>
+                  {[1, 2, 4, 8].map(num => <option key={num} value={num}>{num} Sticks</option>)}
+                </select>
+
+                <select value={ramGen} onChange={(e) => setRamGen(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+                  <option value="">Any Gen</option>
+                  {["DDR3", "DDR4", "DDR5"].map(gen => <option key={gen} value={gen}>{gen}</option>)}
+                </select>
+
+                <select value={ramCap} onChange={(e) => setRamCap(e.target.value)} style={{ padding: "6px", flex: 1 }}>
+                  <option value="">Any Capacity</option>
+                  {[8, 16, 32, 64, 128].map(cap => <option key={cap} value={cap}>{cap}GB Total</option>)}
+                </select>
+              </div>
+
+              {select}
+            </div>
+          );
+        })}
+
+        <div style={{ marginTop: "24px", padding: "16px", border: "1px solid #ccc" }}>
+          <h3>Build Summary</h3>
+          {CATEGORIES.map(({ key, label }) => (
+            <p key={key}>
+              {label}{build[key] ? ` (${build[key]})` : ""}:{" "}
+              {priceErrors[key] ? "Price unavailable" : `$${(livePrices[key] ?? 0).toFixed(2)}`}
+            </p>
+          ))}
+
+          {compatibilityIssues.length > 0 && (
+            <div style={{ margin: "12px 0", padding: "12px", border: "1px solid #e0a0a0", borderRadius: "8px", backgroundColor: "#fdf0f0", color: "#a00" }}>
+              <strong>Compatibility issues</strong>
+              <ul style={{ margin: "8px 0 0", paddingLeft: "20px" }}>
+                {compatibilityIssues.map(({ message }) => <li key={message}>{message}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <h2>
+            Total: ${total.toFixed(2)}
+            {unpricedCount > 0 && ` (${unpricedCount} ${unpricedCount === 1 ? "part" : "parts"} unpriced)`}
+          </h2>
+        </div>
+
+      <BuildControls
+        name={buildName}
+        onNameChange={setBuildName}
+        canUpdate={Boolean(openBuild?.owned)}
+        isShared={Boolean(openBuild && !openBuild.owned)}
+        saving={saving}
+        onSave={() => save(false)}
+        onSaveAsNew={() => save(true)}
+        onReset={handleReset}
+      />
+      {status && <p>{status}</p>}
+
+      <SavedBuilds
+        builds={myBuilds}
+        error={myBuildsError}
+        categories={CATEGORIES}
+        currentId={openBuild?.id}
+        onLoad={showBuild}
+        onRename={handleRename}
+        onDelete={handleDelete}
+      />
+      </main>
+  );
+}
